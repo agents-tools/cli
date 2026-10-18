@@ -126,7 +126,9 @@ struct InstructionExecutableTests {
     #expect(conflict.status == 1 && conflict.stdout.isEmpty)
     #expect(
       conflict.stderr.contains("Conflicting custom content")
-        && conflict.stderr.contains("--replace"))
+        && conflict.stderr.hasSuffix(
+          "; inspect the differences and rerun with --replace to replace the conflicting custom sections.\n"
+        ))
     #expect(try String(contentsOf: target, encoding: .utf8) == custom)
     #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.resolved").path))
     let replaced = try fixture.success(add + ["--replace"])
@@ -137,6 +139,32 @@ struct InstructionExecutableTests {
     let instructions = try #require(declaration["instructions"] as? [String: Any])
     #expect(
       instructions["sections"] as? [String] == ["source:canonical-artifacts", "source:other"])
+  }
+
+  @Test(arguments: [
+    ["install"], ["instructions", "remove", "other"],
+  ])
+  func conflictRemedy(_ arguments: [String]) throws {
+    let fixture = try CLIFixture()
+    try fixture.instruction()
+    try fixture.instruction("other", heading: "Other Rules")
+    try fixture.commit()
+    try fixture.success([
+      "instructions", "add", fixture.source.path, "canonical-artifacts", "other", "--agent",
+      "codex",
+    ])
+    let target = fixture.project.appendingPathComponent("AGENTS.md")
+    try Data("# Canonical Artifacts\n\nConflicting custom content\n".utf8).write(
+      to: target)
+    let conflict = try fixture.run(arguments)
+    #expect(conflict.status == 1)
+    #expect(
+      conflict.stderr.contains("Conflicting custom content")
+        && conflict.stderr.hasSuffix(
+          "; edit or remove the conflicting custom sections in the target file, or rerun 'agents instructions add' with --replace, then retry.\n"
+        ))
+    let invalid = try fixture.run(arguments + ["--replace"])
+    #expect(invalid.status == 64 && invalid.stderr.contains("Unknown option '--replace'"))
   }
 
   @Test func claudeForwardingAndRecipientChanges() throws {
@@ -313,6 +341,11 @@ struct InstructionExecutableTests {
     let fixture = try CLIFixture()
     let result = try fixture.success(arguments)
     #expect(result.stdout.contains("USAGE:") && !result.stdout.contains("--version"))
+    if arguments == ["instructions", "render"] || arguments == ["instructions", "render", "--help"]
+    {
+      #expect(
+        result.stdout.contains("OVERVIEW: Print a ChatGPT prompt from the locked sections."))
+    }
   }
 
   @Test(arguments: [

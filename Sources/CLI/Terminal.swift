@@ -1,6 +1,7 @@
 import AgentsCore
 import AgentsInstructions
 import AgentsSkills
+import ArgumentParser
 import Foundation
 
 func withRecovery<T>(
@@ -30,7 +31,7 @@ enum Terminal {
       .joined()
   }
 
-  static func failureMessage(_ error: Error) -> String {
+  static func failureMessage(_ error: Error, command: any ParsableCommand) -> String {
     let action: String
     switch error {
     case CoreError.transactionRecovered:
@@ -46,7 +47,13 @@ enum Terminal {
     case CoreError.commandFailed:
       action = "check Git access and the source location"
     case InstructionError.conflictingSections:
-      action = "inspect the differences and use --replace to replace conflicting sections"
+      if command is AddInstructions {
+        action =
+          "inspect the differences and rerun with --replace to replace the conflicting custom sections"
+      } else {
+        action =
+          "edit or remove the conflicting custom sections in the target file, or rerun 'agents instructions add' with --replace, then retry"
+      }
     case InstructionError.emptyPrompt:
       action =
         "declare the ChatGPT prompt in agents.json and run 'agents instructions update --apply'"

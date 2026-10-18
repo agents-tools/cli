@@ -150,7 +150,7 @@ struct UpdateInstructions: ParsableCommand {
 
 struct RenderInstructions: ParsableCommand {
   static let configuration = CommandConfiguration(
-    commandName: "render", abstract: "Render instructions for a recipient.",
+    commandName: "render", abstract: "Print a ChatGPT prompt from the locked sections.",
     subcommands: [RenderChatGPT.self])
 }
 

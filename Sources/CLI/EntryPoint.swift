@@ -71,7 +71,7 @@ enum EntryPoint {
       if let code = error as? ExitCode {
         Darwin.exit(code.rawValue)
       }
-      Terminal.error(Terminal.failureMessage(error))
+      Terminal.error(Terminal.failureMessage(error, command: command))
       Darwin.exit(1)
     }
   }
