@@ -48,13 +48,23 @@ struct AddInstructions: ParsableCommand {
         InstructionAddOptions(
           source: source, names: names, replace: replace, agents: agents.recipients,
           scope: location.scope, path: discovery.path, sourceRequirement: requirements.requirement),
-        beforeApply: { Terminal.instructionDifferences($0) })
+        beforeApply: {
+          Terminal.instructionTargets(
+            $0.targets.filter { !$0.assembly.conflicts.isEmpty }, paths: location.paths)
+        })
     }
     if outcome.result == nil {
       Terminal.availableInstructions(outcome.available)
       Terminal.write("Select names with 'agents instructions add <source> <names...>'.\n")
-    } else {
-      Terminal.write("Installed instruction sections.\n")
+    } else if let result = outcome.result {
+      let selected = names.isEmpty ? outcome.available.map { $0.record.name } : names
+      let locked = try InstructionOperations.listManaged(scope: location.scope)
+      for target in result.targets
+      where !target.afterAgents.isEmpty && locked.targets[target.target]?.import == nil {
+        Terminal.write(
+          "Added \(selected.map(Terminal.line).joined(separator: ", ")) to \(location.paths.path(target.url.path)) (\(Terminal.recipients(target.afterAgents))).\n"
+        )
+      }
     }
   }
 }
@@ -95,7 +105,7 @@ struct ListInstructions: ParsableCommand {
       if json {
         try Terminal.json(report)
       } else {
-        Terminal.managedInstructions(report)
+        Terminal.managedInstructions(report, paths: location.paths)
       }
     }
   }
@@ -118,9 +128,13 @@ struct RemoveInstructions: ParsableCommand {
     let result = try withRecovery {
       try InstructionOperations.remove(
         names: names, scope: location.scope, agents: agents.recipients,
-        beforeApply: { Terminal.instructionDifferences($0) })
+        beforeApply: { Terminal.instructionTargets($0.targets, paths: location.paths) })
     }
-    for name in names { Terminal.write("Removed \(Terminal.line(name)).\n") }
+    for target in result.targets where target.changed {
+      Terminal.write(
+        "Removed \(names.map(Terminal.line).joined(separator: ", ")) from \(location.paths.path(target.url.path)).\n"
+      )
+    }
     Terminal.promptReminder(result.changedPrompts)
   }
 }
@@ -160,9 +174,22 @@ struct RenderChatGPT: ParsableCommand {
 
   func run() throws {
     let bytes = try withRecovery {
-      try InstructionOperations.renderChatGPT(prompt: prompt, scope: location.scope)
+      _ = try InstructionOperations.listManaged(scope: location.scope)
+      let declarationURL = StateStore(scope: location.scope, environment: RuntimeEnvironment())
+        .declarationURL
+      let declaration: Declaration
+      do {
+        declaration = try JSONDecoder().decode(
+          Declaration.self, from: Data(contentsOf: declarationURL))
+      } catch CocoaError.fileReadNoSuchFile {
+        declaration = Declaration()
+      }
+      guard declaration.instructions?.chatgpt?[prompt] != nil else {
+        throw HumanOutputError.undeclaredPrompt(prompt)
+      }
+      return try InstructionOperations.renderChatGPT(prompt: prompt, scope: location.scope)
     }
-    FileHandle.standardOutput.write(bytes)
+    Terminal.write(Terminal.text(String(decoding: bytes, as: UTF8.self)))
   }
 }
 
@@ -178,6 +205,16 @@ struct InitializeInstructions: ParsableCommand {
       try InstructionOperations.initializeInstructions(
         named: name, directory: URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
     }
-    Terminal.write("Created \(Terminal.line(file.path)).\n")
+    Terminal.write("Created \(HumanPaths().path(file.path)).\n")
+  }
+}
+
+enum HumanOutputError: Error, CustomStringConvertible {
+  case undeclaredPrompt(String)
+
+  var description: String {
+    switch self {
+    case .undeclaredPrompt(let name): "No ChatGPT prompt named '\(name)' is declared."
+    }
   }
 }

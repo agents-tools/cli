@@ -68,11 +68,9 @@ struct InstructionExecutableTests {
     let applied = try fixture.success(["instructions", "update", "--apply"] + arguments)
     let diffIndex = try #require(applied.stdout.range(of: "+Updated instructions")?.lowerBound)
     let appliedIndex = try #require(
-      applied.stdout.range(of: "Applied instruction update.")?.lowerBound)
+      applied.stdout.range(of: "Updated ")?.lowerBound)
     #expect(diffIndex < appliedIndex)
-    #expect(
-      applied.stdout.contains("Re-paste changed ChatGPT prompts")
-        && applied.stdout.contains("weekly"))
+    #expect(applied.stdout.contains("Changed ChatGPT prompt weekly."))
     let expected = try Data(contentsOf: target)
     let updatedLock = try Data(contentsOf: fixture.state("agents.resolved", scope: scope))
     try Data(drift.utf8).write(to: target)
@@ -127,7 +125,7 @@ struct InstructionExecutableTests {
     #expect(
       conflict.stderr.contains("Conflicting custom content")
         && conflict.stderr.hasSuffix(
-          "; inspect the differences and rerun with --replace to replace the conflicting custom sections.\n"
+          "\n  Inspect the differences and rerun with --replace to replace the conflicting custom sections.\n"
         ))
     #expect(try String(contentsOf: target, encoding: .utf8) == custom)
     #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.resolved").path))
@@ -161,7 +159,7 @@ struct InstructionExecutableTests {
     #expect(
       conflict.stderr.contains("Conflicting custom content")
         && conflict.stderr.hasSuffix(
-          "; edit or remove the conflicting custom sections in the target file, or rerun 'agents instructions add' with --replace, then retry.\n"
+          "\n  Edit or remove the conflicting custom sections in the target file, or rerun 'agents instructions add' with --replace, then retry.\n"
         ))
     let invalid = try fixture.run(arguments + ["--replace"])
     #expect(invalid.status == 64 && invalid.stderr.contains("Unknown option '--replace'"))
@@ -177,12 +175,12 @@ struct InstructionExecutableTests {
     let declaration = try Data(contentsOf: fixture.state("agents.json"))
     let lock = try Data(contentsOf: fixture.state("agents.resolved"))
     let arguments = ["instructions", "update", "--agent", "cursor"]
-    let recipients = "Recipients of \(target.path): codex -> cursor\n"
+    let recipients = "Recipients of AGENTS.md: codex -> cursor\n"
     let preview = try fixture.success(arguments)
     #expect(preview.stdout.contains(recipients))
     #expect(preview.stdout.contains("Preview only."))
     #expect(!preview.stdout.contains("No instruction changes."))
-    #expect(!preview.stdout.contains("--- before/"))
+    #expect(!preview.stdout.contains("--- "))
     let json = try fixture.success(arguments + ["--json"]).json()
     #expect(json["changed"] as? Bool == true)
     let changes = try #require(json["instructions"] as? [String: Any])
@@ -204,7 +202,7 @@ struct InstructionExecutableTests {
     #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
     let applied = try fixture.success(arguments + ["--apply"])
     #expect(applied.stdout.contains(recipients))
-    #expect(applied.stdout.contains("Applied instruction update."))
+    #expect(!applied.stdout.contains("Updated AGENTS.md."))
     #expect(try Data(contentsOf: target) == bytes)
     let clean = try fixture.success(["instructions", "update", "--json"]).json()
     #expect(clean["changed"] as? Bool == false)
@@ -249,10 +247,11 @@ struct InstructionExecutableTests {
     for (name, recipients) in [
       ("AGENTS.md", "claude-code, codex -> none"), ("GEMINI.md", "none -> gemini-cli"),
     ] {
-      let path = fixture.project.appendingPathComponent(name).path
+      let path = name
       let recipientsIndex = try #require(
         human.stdout.range(of: "Recipients of \(path): \(recipients)\n")?.lowerBound)
-      let diffIndex = try #require(human.stdout.range(of: "--- before/\(path)\n")?.lowerBound)
+      let header = name == "GEMINI.md" ? "+++ b/\(path)\n" : "--- a/\(path)\n"
+      let diffIndex = try #require(human.stdout.range(of: header)?.lowerBound)
       #expect(recipientsIndex < diffIndex)
     }
     #expect(try Data(contentsOf: fixture.state("agents.json")) == before)
@@ -317,17 +316,44 @@ struct InstructionExecutableTests {
     #expect(
       (preview["instructions"] as? [String: Any])?["changedPrompts"] as? [String] == ["weekly"])
     let applied = try fixture.success(["update", "--apply"])
-    let skillsIndex = try #require(applied.stdout.range(of: "Applied skill update.")?.lowerBound)
+    let skillsIndex = try #require(
+      applied.stdout.range(of: "Updated demo for codex.")?.lowerBound)
     let instructionsIndex = try #require(
-      applied.stdout.range(of: "Changed instruction")?.lowerBound)
+      applied.stdout.range(of: "~ changed  canonical-artifacts (instructions)")?.lowerBound)
     #expect(skillsIndex < instructionsIndex)
-    #expect(applied.stdout.contains("Re-paste changed ChatGPT prompts"))
+    #expect(applied.stdout.contains("Changed ChatGPT prompt weekly."))
     #expect(try String(contentsOf: skill, encoding: .utf8).contains("Updated skill"))
     #expect(try String(contentsOf: target, encoding: .utf8).contains("Updated section"))
     let clean = try fixture.success(["update", "--json"]).json()
     #expect(clean["changed"] as? Bool == false)
     let steadyInstall = try fixture.success(["install", "--json"]).json()
     #expect((steadyInstall["instructions"] as? [String: Any])?["changed"] as? Bool == false)
+  }
+
+  @Test func skillApplyCompletionSurvivesInstructionFailure() throws {
+    let fixture = try CLIFixture()
+    try fixture.skill("pdf")
+    try fixture.instruction()
+    try fixture.commit()
+    try fixture.success(["skills", "add", fixture.source.path, "pdf"])
+    try fixture.success(["instructions", "add", fixture.source.path])
+    let target = fixture.project.appendingPathComponent("AGENTS.md")
+    let invalid = try Data(contentsOf: target) + Data("\n<!-- END managed by agents -->\n".utf8)
+    try invalid.write(to: target)
+    try fixture.skill("pdf", body: "Updated content")
+    try fixture.commit()
+    let applied = try fixture.run(["update", "--apply"])
+    #expect(applied.status == 1 && !applied.stderr.isEmpty)
+    #expect(applied.stdout.hasSuffix("Updated pdf for claude-code, codex.\n"))
+    #expect(
+      applied.stdout.components(separatedBy: "Updated pdf for claude-code, codex.\n").count == 2)
+    #expect(!applied.stdout.contains("Updated AGENTS.md."))
+    for path in [".agents/skills/pdf/SKILL.md", ".claude/skills/pdf/SKILL.md"] {
+      #expect(
+        try String(contentsOf: fixture.project.appendingPathComponent(path), encoding: .utf8)
+          .contains("Updated content"))
+    }
+    #expect(try Data(contentsOf: target) == invalid)
   }
 
   @Test func instructionDoctorErrorsAndFailedJSON() throws {
@@ -350,7 +376,10 @@ struct InstructionExecutableTests {
       })
     let failed = try fixture.run(["install", "--json"])
     #expect(failed.status == 1 && failed.stdout.isEmpty)
-    #expect(failed.stderr.split(separator: "\n").count == 1)
+    #expect(failed.stderr.split(separator: "\n").dropFirst().allSatisfy { $0.hasPrefix("  ") })
+    #expect(
+      failed.stderr.hasSuffix(
+        "\n  Check the instruction source and target Markdown with 'agents doctor'.\n"))
   }
 
   @Test func emptyScopeReports() throws {
@@ -427,7 +456,8 @@ struct InstructionExecutableTests {
     let fixture = try CLIFixture()
     let result = try fixture.run(arguments)
     #expect(result.status == 64 && result.stdout.isEmpty)
-    #expect(result.stderr.split(separator: "\n").count == 1)
+    #expect(result.stderr.split(separator: "\n").dropFirst().allSatisfy { $0.hasPrefix("  ") })
+    #expect(result.stderr.hasSuffix("\n  Run 'agents --help' for usage.\n"))
   }
 }
 

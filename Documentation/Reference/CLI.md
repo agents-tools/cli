@@ -146,7 +146,7 @@ When a project Claude file exists, core adds a managed import of `AGENTS.md`
 where needed. Existing forwarding and custom content are preserved.
 
 Conflicting custom sections stop add with differences in the diagnostic.
-`--replace` displays before/after target snapshots before replacing conflicts.
+`--replace` displays a unified target diff before replacing conflicts.
 `instructions remove <names…>` removes sections from file targets and ChatGPT
 prompts. Use `source-alias:name` if a bare name is ambiguous. Empty managed
 blocks are removed; files created by core are deleted only when no custom
@@ -173,13 +173,14 @@ source alias (here `rules`):
 Merge this fragment with the declaration's existing sources and selections.
 `append` is optional and relative to the project root or HOME for user scope.
 Run `agents instructions update` to preview, then `--apply` to lock the prompt.
-`agents instructions render chatgpt weekly` writes exactly the locked sections
-in declared order, followed by the current append file bytes, without markers
-or status text. It does not resolve upstream versions. An absent prompt or one
+`agents instructions render chatgpt weekly` writes the locked sections in
+declared order, followed by the current append file content, without markers
+or status text. Tabs and line breaks are preserved; other control characters
+use visible escapes. It does not resolve upstream versions. An absent prompt or one
 without locked sections fails. Add `--scope user` for a user prompt.
 
-Update previews list changed prompts. After apply, the CLI tells the user to
-re-paste them; removed prompts must be cleared in ChatGPT. Core detects changes
+Update previews and `--apply` list changed prompts. Re-paste changed prompts;
+removed prompts must be cleared in ChatGPT. Core detects changes
 to section bytes, membership, order, or append path. Edits to the append file's
 contents are read at render time and are not tracked as prompt changes.
 
@@ -197,11 +198,9 @@ watched head. Well-known subscriptions follow the index.
 core's order. Git revisions are abbreviated to seven characters:
 
 ```text
-github.com/anthropics/skills  3 commits since a1b2c3d (now 9f8e7d6)
-  + new      pdf-forms
-  ~ changed  frontend-design   4 files
-  - removed  legacy-docx
-local:/Users/me/Developer/rules  up to date
+local:~/Developer/team-rules  1 commit since 6c09c94 (now 9661957)
+  ~ changed  code-review (instructions)   1 file
+  ~ changed  pdf   1 file
 ```
 
 The Git count is commits reachable from the current head but not the seen
@@ -211,14 +210,32 @@ or `up to date`. Instruction and artifact names carry `(instructions)` or
 new and removed items omit the file count. An empty scope prints
 `No watched sources.`
 
-`watch diff <source> [name]` prints each changed item's heading, such as
-`~ changed  frontend-design (skill)`, followed by full before/after snapshots
-using update preview rendering. All headings include the kind. File paths are
-relative to the item; snapshots retain executable mode (`[executable]` or
-`[non-executable]`), text, base64 binary bytes, symbolic-link destinations,
-directories, and absent entries. `--kind skill|instructions|artifact` filters
-changes and disambiguates shared names. With no matching changes, diff prints
-`up to date`.
+`watch diff <source> [name]` prints each changed item's heading and unified
+line diffs with three lines of context. Skill paths are relative to the skill
+root and prefixed by the skill name, such as `pdf/SKILL.md`. Instruction and
+artifact paths are relative to the item.
+`--kind skill|instructions|artifact` filters changes and disambiguates shared
+names. With no matching changes, diff prints `up to date`.
+
+```text
+~ changed  code-review (instructions)  local:~/Developer/team-rules  6c09c94 -> 9661957
+--- a/code-review.md
++++ b/code-review.md
+@@ -2,7 +2,7 @@
+ Review checklist:
+ Read the change.
+ Check correctness.
+-Review the code.
++Review the code and tests.
+ Check tests.
+ Check edge cases.
+ Record findings.
+```
+
+Mode changes print `mode pdf/run.sh: 644 -> 755`; unchanged modes are omitted.
+Binary content prints `Binary file <path> differs`. Links print
+`link <path>: <old> -> <new>` (`none` for an absent link); directories print
+`directory <path> added` or `directory <path> removed`.
 
 `watch seen <source>` acknowledges current content. `--revision <rev>` resolves
 a Git revision to its full commit ID and can select an older commit. Well-known
@@ -229,9 +246,9 @@ content. Diff, seen, and remove accept a subscribed alias, source ID, or locatio
 Mutation confirmations use normalized source IDs:
 
 ```text
-Watching github.com/anthropics/skills from a1b2c3d.
-Marked github.com/anthropics/skills seen at 9f8e7d6.
-Stopped watching github.com/anthropics/skills; installations are unchanged.
+Watching local:~/Developer/team-rules from 6c09c94.
+Marked local:~/Developer/team-rules seen at 9661957.
+Stopped watching local:~/Developer/team-rules; installations are unchanged.
 ```
 
 Well-known confirmations omit revisions: `Watching <source ID>.` and
@@ -257,17 +274,99 @@ including membership changes in `all` selections. `instructions update` resolves
 all declared sections and ChatGPT prompts. Top-level `update` handles skills,
 then instructions.
 
-`--apply` prints old/new revisions, hashes, and full before/after file snapshots
-before core replaces targets and lock together. File output includes deletion,
-directory, symbolic-link destination, text, and binary bytes (base64). This is
-a full snapshot comparison, not a minimal unified patch. A preview can become
-stale; `--apply` resolves again and displays the content it will actually write.
-`--json --apply` is a usage error.
+Human update item lines use `+ new`, `~ changed`, `= repinned`, and `- removed`.
+Repinned means only the pin moved and content is identical. Items sort in that
+order, then by name, with skills before instructions for the same name.
+Top-level previews combine both kinds; `--apply` keeps core's skill-then-instruction
+operation order and sorts within each operation.
+Instruction names carry `(instructions)`. Revisions use seven characters;
+instruction versions appear as `1.2.0 (abc1234)`, while skill updates show
+revisions. Item summaries omit hashes. Live edit records show `none` for pins;
+a pinless result with no file differences is reported as changed.
 
-Instruction updates print `Recipients of <path>: <before> -> <after>` before
-each target's byte diff when its recipients change, including changes that
-leave the file bytes identical. Each side lists comma-separated agent IDs;
-`none` means no recipients or no previous lock entry.
+```text
+~ changed  code-review (instructions)  local:~/Developer/team-rules  6c09c94 -> 9661957
+= repinned  commits (instructions)  local:~/Developer/team-rules  6c09c94 -> 9661957
+AGENTS.md (claude-code, codex)
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -3,7 +3,7 @@
+ Review checklist:
+ Read the change.
+ Check correctness.
+-Review the code.
++Review the code and tests.
+ Check tests.
+ Check edge cases.
+ Record findings.
+Preview only. Run again with --apply to write these changes.
+```
+
+Human diffs are for reading. JSON reports carry exact content bytes in base64.
+Tabs print verbatim; other control characters in payload lines and upstream
+text use visible escapes such as `\r`, `\x1b`, `\x00`, or `\u{202e}`. Rendered
+ChatGPT Markdown preserves line breaks and tabs and uses the same escaping.
+
+File comparisons use unified line diffs with three lines of context and
+`--- a/<path>`, `+++ b/<path>`, and `@@` hunk headers. New files use
+`--- /dev/null`; removed files use `+++ /dev/null`. Missing trailing newlines
+are marked with `\ No newline at end of file`. Empty file creation or removal
+prints only `empty file <path> added` or `empty file <path> removed`. Binary, mode,
+link, and directory changes use the same rendering as watch diffs. Watch diffs
+include executable-mode changes; skill update diffs compare content bytes,
+links, and directories.
+
+Skill content differences appear once per skill, using paths relative to its
+root prefixed by its name. Identical changes across installations are combined.
+Recipient-specific differences, such as divergent local copies, are labeled by
+recipient. Installation links moving between cached snapshots are omitted.
+Links to live edit targets and changes between link, copy, and edit modes remain
+visible, as do symbolic links within the skill content.
+
+```text
+~ changed  pdf  local:~/Developer/team-rules  6c09c94 -> 9661957
+--- a/pdf/SKILL.md
++++ b/pdf/SKILL.md
+@@ -6,7 +6,7 @@
+ PDF checklist:
+ Open the document.
+ Inspect page sizes.
+-Inspect PDF pages.
++Inspect PDF pages and metadata.
+ Check metadata.
+ Check annotations.
+ Review extracted text.
+Preview only. Run again with --apply to write these changes.
+```
+
+Instruction targets print `<path> (<recipients>)` before their diff. Recipient
+changes print `Recipients of AGENTS.md: codex -> claude-code, codex`, including
+changes with identical file bytes. Each side lists sorted agent IDs; `none`
+means no recipients or no previous lock entry.
+
+`--apply` prints the preview before each core operation writes, followed by
+`Updated <skill> for <recipients>.` for skills and `Updated <path>.` for
+instruction targets. Removed skill recipients get
+`Removed <skill> for <recipients>.` Skill completions print as soon as the skill
+operation succeeds, before instruction processing. There is no generic success
+banner.
+A preview can become stale; `--apply` resolves again and displays the content
+it will actually write. `--json --apply` is a usage error.
+
+Completion lines name their content and destinations:
+
+```text
+Installed pdf for claude-code, codex (link).
+Added code-review, commits to AGENTS.md (claude-code, codex).
+Updated pdf for claude-code, codex.
+Updated AGENTS.md.
+Removed commits from AGENTS.md.
+Removed pdf for claude-code, codex.
+```
+
+Normal instruction adds print only the completion lines. Replacing conflicting
+custom sections with `--replace` prints the conflict diff first. Instruction
+removal prints target diffs before its completion lines.
 
 `install` restores skills, then instruction targets, using exact locked pins,
 hashes, modes, recipients, and heading offsets. It does not resolve newer versions and takes no source argument. Unavailable pins or content
@@ -327,10 +426,31 @@ operation once. A second recovery or any other failure stops the command.
 Human-readable stdout is the default. Commands are non-interactive and never
 prompt; add, remove, init, and install perform their named actions immediately.
 Only `update --apply` writes an update. Diagnostics and recovery notices go to
-stderr. Errors are one line containing the cause and a suggested action.
-Terminal control characters in human-readable source text are replaced by spaces.
-ChatGPT render preserves its content exactly, including whitespace and the
-append file's final newline behavior; only diagnostics go to stderr.
+stderr. Human paths are project-relative inside the project in project scope,
+`~/…` under HOME, and absolute otherwise. Local source IDs abbreviate HOME,
+for example `local:~/Developer/team-rules`. Installed skill listings use the
+same path rules. JSON retains full revisions, hashes, and absolute paths.
+
+Errors preserve line breaks. The first line starts with `Error: `; every
+continuation line is indented by two spaces, including Git stderr and remote
+text that itself begins with `Error:`. Trailing blank lines are dropped.
+Punctuation is added only when the error's last non-empty line lacks it.
+The capitalized remedy is its own final sentence on a separate line, indented
+by two spaces. Tabs print verbatim; all other controls within each line,
+including ESC, CR, C1, and bidi controls, use visible escapes:
+
+```text
+Error: No ChatGPT prompt named 'daily' is declared.
+  Declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'.
+Error: Unknown option '--all'. Did you mean '--path'?
+  Run 'agents --help' for usage.
+```
+
+A declared ChatGPT prompt without locked sections retains the diagnostic
+`A ChatGPT prompt must have at least one locked section.`
+Human-readable source text preserves tabs and visibly escapes other control
+characters. ChatGPT render also preserves line breaks and the append file's
+final newline behavior; only diagnostics go to stderr.
 
 | Code | Meaning |
 | --- | --- |
