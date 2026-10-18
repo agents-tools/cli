@@ -158,6 +158,9 @@ struct DoctorRoot: Encodable {
 }
 
 struct CheckItem: Encodable {
+  private static let pendingRecoveryMessage =
+    "Transaction recovery is pending; run any command that changes this scope, such as 'agents install', to finish recovery."
+
   let kind: String
   let id: String
   let status: String
@@ -167,8 +170,10 @@ struct CheckItem: Encodable {
   init(_ check: DoctorCheck) {
     kind = "skills"
     id = check.id
-    status = check.status.rawValue
-    message = check.message
+    status = check.id == "pending-recovery" ? "error" : check.status.rawValue
+    message =
+      check.id == "pending-recovery"
+      ? Self.pendingRecoveryMessage : check.message
     path = check.path
   }
 
@@ -176,12 +181,14 @@ struct CheckItem: Encodable {
     kind = "instructions"
     id = diagnostic.kind.rawValue
     switch diagnostic.kind {
-    case .invalidTarget, .conflict, .invalidConfiguration, .stateUnavailable:
+    case .invalidTarget, .conflict, .invalidConfiguration, .stateUnavailable, .pendingRecovery:
       status = "error"
     default:
       status = "warning"
     }
-    message = diagnostic.message
+    message =
+      diagnostic.kind == .pendingRecovery
+      ? Self.pendingRecoveryMessage : diagnostic.message
     path = diagnostic.path?.path
   }
 }

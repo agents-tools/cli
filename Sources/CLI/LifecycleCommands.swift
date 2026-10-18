@@ -82,7 +82,7 @@ struct UpdateOptions: ParsableArguments {
       Terminal.promptReminder(result.changedPrompts)
     } else {
       Terminal.instructionDifferences(result)
-      previewNotice(changed: InstructionChanges.hasChanges(result))
+      previewNotice(changed: result.hasChanges)
     }
   }
 
@@ -110,7 +110,7 @@ struct Update: ParsableCommand {
           instructions: InstructionChanges(instructions)))
     } else {
       options.finishInstructions(instructions)
-      if !InstructionChanges.hasChanges(instructions) {
+      if !instructions.hasChanges {
         options.previewNotice(changed: skills.contains(where: \.changed))
       }
     }
@@ -171,14 +171,11 @@ struct Doctor: ParsableCommand {
       let runtime = RuntimeEnvironment(
         projectDirectory: project, homeDirectory: environment.homeDirectory,
         environment: environment.environment)
-      let report = try withRecovery {
-        try SkillOperations.doctor(
-          scope: location.scope, agents: agents.recipients,
-          environment: runtime)
-      }
-      let instructions = try withRecovery {
-        try InstructionOperations.doctor(scope: location.scope, environment: runtime)
-      }
+      let report = try SkillOperations.doctor(
+        scope: location.scope, agents: agents.recipients,
+        environment: runtime)
+      let instructions = try InstructionOperations.doctor(
+        scope: location.scope, environment: runtime)
       reports.append(
         DoctorRoot(
           root: location.scope == .user ? environment.homeDirectory.path : project.path,

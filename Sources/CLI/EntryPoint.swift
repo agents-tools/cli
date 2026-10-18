@@ -90,7 +90,7 @@ enum EntryPoint {
           $0.configuration.commandName == name
         })
       else {
-        if !isHelp { return }
+        if !isHelp && parent.configuration.subcommands.isEmpty { return }
         throw ValidationError("Unknown command '\(name)'")
       }
       parent = child

@@ -130,7 +130,7 @@ enum Terminal {
   }
 
   static func instructionDifferences(_ report: InstructionUpdateReport) {
-    if !InstructionChanges.hasChanges(report) { write("No instruction changes.\n") }
+    if !report.hasChanges { write("No instruction changes.\n") }
     if report.lockMissing
       && (!report.sections.isEmpty || !report.targets.isEmpty || !report.changedPrompts.isEmpty)
     {
@@ -153,6 +153,13 @@ enum Terminal {
       }
       for conflict in target.assembly.conflicts {
         write("Conflict \(line(conflict.sectionID)) in \(line(target.url.path))\n")
+      }
+      if target.agentsChanged {
+        let before = (target.beforeAgents ?? []).map(\.rawValue).joined(separator: ", ")
+        let after = target.afterAgents.map(\.rawValue).joined(separator: ", ")
+        write(
+          "Recipients of \(line(target.url.path)): \(line(before.isEmpty ? "none" : before)) -> \(line(after.isEmpty ? "none" : after))\n"
+        )
       }
       if target.changed {
         write("--- before/\(line(target.url.path))\n+++ after/\(line(target.url.path))\n")

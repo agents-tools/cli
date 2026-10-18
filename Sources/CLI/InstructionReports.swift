@@ -119,12 +119,7 @@ struct InstructionChanges: Encodable {
     sections = report.sections.map(SectionChange.init)
     targets = report.targets.map(InstructionTargetChangeItem.init)
     changedPrompts = report.changedPrompts
-    changed = Self.hasChanges(report)
-  }
-
-  static func hasChanges(_ report: InstructionUpdateReport) -> Bool {
-    !report.sections.isEmpty || report.targets.contains(where: \.changed)
-      || !report.changedPrompts.isEmpty || (report.lockMissing && !report.targets.isEmpty)
+    changed = report.hasChanges
   }
 }
 
@@ -142,6 +137,9 @@ struct InstructionTargetChangeItem: Encodable {
   let target: String
   let path: String
   let changed: Bool
+  let agentsChanged: Bool
+  let beforeAgents: [String]?
+  let afterAgents: [String]
   let before: FileEntry?
   let after: FileEntry?
   let drift: String?
@@ -152,6 +150,9 @@ struct InstructionTargetChangeItem: Encodable {
     target = change.target
     path = change.url.path
     changed = change.changed
+    agentsChanged = change.agentsChanged
+    beforeAgents = change.beforeAgents?.map(\.rawValue)
+    afterAgents = change.afterAgents.map(\.rawValue)
     before = change.before.map { FileEntry(.file($0)) }
     after = change.after.map { FileEntry(.file($0)) }
     switch change.drift {
@@ -162,6 +163,26 @@ struct InstructionTargetChangeItem: Encodable {
     }
     adoptedSections = change.assembly.adoptedSections
     conflicts = change.assembly.conflicts.map(InstructionConflictItem.init)
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case target, path, changed, agentsChanged, beforeAgents, afterAgents
+    case before, after, drift, adoptedSections, conflicts
+  }
+
+  func encode(to encoder: any Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(target, forKey: .target)
+    try container.encode(path, forKey: .path)
+    try container.encode(changed, forKey: .changed)
+    try container.encode(agentsChanged, forKey: .agentsChanged)
+    try container.encode(beforeAgents, forKey: .beforeAgents)
+    try container.encode(afterAgents, forKey: .afterAgents)
+    try container.encodeIfPresent(before, forKey: .before)
+    try container.encodeIfPresent(after, forKey: .after)
+    try container.encodeIfPresent(drift, forKey: .drift)
+    try container.encode(adoptedSections, forKey: .adoptedSections)
+    try container.encode(conflicts, forKey: .conflicts)
   }
 }
 

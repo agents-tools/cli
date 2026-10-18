@@ -181,6 +181,59 @@ struct ExecutableTests {
     #expect(existing.status == 1 && existing.stderr.contains("already exists"))
   }
 
+  @Test(arguments: ["project", "user"], ["transaction.json", "transaction.new"])
+  func doctorLeavesPendingRecoveryUnchanged(scope: String, journal: String) throws {
+    let fixture = try CLIFixture()
+    let state = fixture.state("", scope: scope)
+    let cache = fixture.state("cache/content", scope: scope)
+    try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+    let files = [
+      fixture.state(journal, scope: scope), fixture.state("agents.json", scope: scope),
+      fixture.state("agents.resolved", scope: scope), cache.appendingPathComponent("snapshot"),
+    ]
+    for (file, content) in zip(
+      files,
+      [
+        Data("{}".utf8), Data("incomplete declaration".utf8), Data("incomplete lock".utf8),
+        Data([0, 255]),
+      ])
+    {
+      try content.write(to: file)
+    }
+    let paths = try FileManager.default.subpathsOfDirectory(atPath: state.path).sorted()
+    let before = try files.map { try Data(contentsOf: $0) }
+    let remedy =
+      "run any command that changes this scope, such as 'agents install', to finish recovery"
+    for json in [false, true] {
+      let result = try fixture.run(["doctor", "--scope", scope] + (json ? ["--json"] : []))
+      #expect(result.status == 1 && result.stderr.isEmpty)
+      if json {
+        let report = try result.json()
+        #expect(Set(report.keys) == ["schemaVersion", "ok", "roots"])
+        #expect(report["ok"] as? Bool == false)
+        let roots = try #require(report["roots"] as? [[String: Any]])
+        #expect(roots.count == 1 && roots.first?["ok"] as? Bool == false)
+        let checks = try #require(roots.first?["checks"] as? [[String: Any]])
+        #expect(checks.count == 2)
+        #expect(checks.compactMap { $0["kind"] as? String } == ["skills", "instructions"])
+        #expect(
+          checks.compactMap { $0["id"] as? String } == ["pending-recovery", "pendingRecovery"])
+        for check in checks {
+          #expect(Set(check.keys) == ["kind", "id", "status", "message", "path"])
+          #expect(check["status"] as? String == "error")
+          #expect((check["message"] as? String)?.contains(remedy) == true)
+          #expect(check["path"] as? String == state.path)
+        }
+      } else {
+        #expect(result.stdout.contains("skills error: Transaction recovery is pending"))
+        #expect(result.stdout.contains("instructions error: Transaction recovery is pending"))
+        #expect(result.stdout.contains(remedy))
+      }
+      #expect(try FileManager.default.subpathsOfDirectory(atPath: state.path).sorted() == paths)
+      #expect(try files.map { try Data(contentsOf: $0) } == before)
+    }
+  }
+
   @Test func previewDescribesEntryTypesAndDeletions() throws {
     let fixture = try CLIFixture()
     try fixture.skill()
@@ -310,6 +363,11 @@ struct ExecutableTests {
   @Test(arguments: [
     ["unknown"], ["skills", "unknown"], ["help", "unknown"], ["skills", "remove"],
     ["skills", "help", "unknown"], ["help", "skills", "unknown"],
+    ["unknown", "--help"], ["skills", "unknown", "--help"],
+    ["instructions", "unknown"], ["instructions", "unknown", "--help"],
+    ["instructions", "render", "unknown"], ["instructions", "render", "unknown", "--help"],
+    ["help", "unknown", "--help"], ["skills", "help", "unknown", "--help"],
+    ["help", "instructions", "render", "unknown", "--help"],
     ["install", "--agent", "codex"], ["install", "--mode", "copy"],
     ["skills", "add", ".", "--exact", "bad"], ["update", "--json", "--apply"],
     ["skills", "--version"], ["skills", "add", ".", "--version"],
@@ -325,6 +383,9 @@ struct ExecutableTests {
     #expect(result.stdout.isEmpty && result.stderr.hasPrefix("Error:"))
     #expect(result.stderr.split(separator: "\n").count == 1)
     #expect(result.stderr.contains("agents --help"))
+    if arguments.contains("unknown") {
+      #expect(result.stderr.contains("Unknown command 'unknown'"))
+    }
   }
 
   @Test func operationFailureAndEnvironmentIsolation() throws {

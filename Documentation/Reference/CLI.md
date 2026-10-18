@@ -191,6 +191,11 @@ a full snapshot comparison, not a minimal unified patch. A preview can become
 stale; `--apply` resolves again and displays the content it will actually write.
 `--json --apply` is a usage error.
 
+Instruction updates print `Recipients of <path>: <before> -> <after>` before
+each target's byte diff when its recipients change, including changes that
+leave the file bytes identical. Each side lists comma-separated agent IDs;
+`none` means no recipients or no previous lock entry.
+
 `install` restores skills, then instruction targets, using exact locked pins,
 hashes, modes, recipients, and heading offsets. It does not resolve newer versions and takes no source argument. Unavailable pins or content
 that fails digest verification cause failure.
@@ -230,11 +235,17 @@ Core resolves installation locations, including `CODEX_HOME`,
 `CLAUDE_CONFIG_DIR`, and `XDG_CONFIG_HOME` when applicable. User state remains
 under HOME's `.agents` directory.
 
-Read commands and previews do not write declarations, locks, or installations
-during normal operation. They may fetch/cache source data. If core recovers an
-interrupted transaction on any operation, the CLI reports recovery on stderr
-and retries that operation once. A second recovery or any other failure stops
-the command. Recovery can restore files even when triggered by a read command.
+Read commands and previews do not recover interrupted transactions or write
+declarations, locks, or installations. Doctor inspects existing state without
+fetching sources, writing caches, or creating locks. A pending transaction is
+reported as skill check `pending-recovery` and instruction diagnostic
+`pendingRecovery`. Both are error checks: the state is inconsistent until
+recovery, so doctor sets `ok` to false and exits 1. The remedy is to run any
+command that changes this scope, such as `agents install`, to finish recovery.
+
+Commands that change a scope finish pending recovery before proceeding. When
+core reports recovery, the CLI prints a notice on stderr and retries that
+operation once. A second recovery or any other failure stops the command.
 
 ## Output and Exit Status
 
@@ -252,11 +263,15 @@ append file's final newline behavior; only diagnostics go to stderr.
 | `1` | Operation failure or a completed doctor report containing an error check |
 | `64` | Invalid usage, including unknown commands, options, or invalid option combinations |
 
+Unknown commands and subcommands report `Unknown command '<name>'` and exit
+64 even when followed by `--help`. Both `agents unknown --help` and
+`agents skills unknown --help` are usage errors.
+
 Doctor's `ok` means there are no error checks; warnings do not make it false.
 Instruction `invalidTarget`, `conflict`, `invalidConfiguration`, and
-`stateUnavailable` diagnostics are errors. Other instruction diagnostics,
-including drift and missing blocks, are warnings. Skill severity is supplied
-by core.
+`stateUnavailable` diagnostics and both pending-recovery findings are errors.
+Other instruction diagnostics, including drift and missing blocks, are
+warnings. Other skill severities are supplied by core.
 A failed operation emits no successful JSON report. JSON stdout contains only
 one object and a trailing newline; recovery notices remain on stderr.
 
@@ -266,7 +281,8 @@ All reports have integer `schemaVersion: 1`. Object keys are sorted. Arrays
 follow core's deterministic ordering; instruction section lists preserve
 selection order, targets and prompt names are sorted, and doctor roots retain
 input order.
-Optional properties are omitted when unavailable, never encoded as `null`.
+Optional properties are omitted when unavailable. Instruction target
+`beforeAgents` is always present and is `null` when no previous lock entry exists.
 Filesystem paths, including update file `path` fields, are absolute except
 instruction section `path` (source-relative), `target` keys (project-relative,
 `~`-relative for user targets under HOME, otherwise absolute), and prompt
@@ -315,13 +331,17 @@ The shared [instruction definitions](Schemas/instructions.schema.json) describe:
 
 - `sections`: pin changes with optional `before` and `after` section records.
 - `targets`: all affected physical files, each with `target`, absolute `path`,
-  `changed`, optional `before`/`after` file snapshots, optional `drift`,
-  `adoptedSections`, and `conflicts` with existing/proposed text and difference.
+  `changed` (file bytes differ), `agentsChanged` (recipients differ),
+  `beforeAgents` (previous agent IDs, or `null` when no lock entry existed),
+  `afterAgents` (planned agent IDs, empty when no longer managed), optional
+  `before`/`after` file snapshots, optional `drift`, `adoptedSections`, and
+  `conflicts` with existing/proposed text and difference. Agent IDs use their
+  raw values in deterministic order.
 - `changedPrompts`: prompt names whose content definition changed.
 - `lockMissing`: no scope lock existed when the operation began.
-- `changed`: a section pin, target bytes, or prompt changed, or targets need a
-  missing lock recorded. Recipient metadata changes sharing the same physical
-  target may leave this false; `--apply` still records the chosen recipients.
+- `changed`: applying changes the declaration, locked state, or target bytes,
+  including recipient-only changes with identical file bytes and targets that
+  need a missing lock recorded.
 
 Instruction file snapshots use the same `{ "kind": "file", "base64": "…" }`
 shape as skill files. `install --json` reports restored skill rows and

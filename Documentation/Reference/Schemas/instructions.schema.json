@@ -69,6 +69,24 @@
               "changed": {
                 "type": "boolean"
               },
+              "agentsChanged": {
+                "type": "boolean"
+              },
+              "beforeAgents": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "afterAgents": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "before": {
                 "type": "object",
                 "properties": {
@@ -145,6 +163,9 @@
               "target",
               "path",
               "changed",
+              "agentsChanged",
+              "beforeAgents",
+              "afterAgents",
               "adoptedSections",
               "conflicts"
             ]

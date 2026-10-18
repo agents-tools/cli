@@ -167,6 +167,57 @@ struct InstructionExecutableTests {
     #expect(invalid.status == 64 && invalid.stderr.contains("Unknown option '--replace'"))
   }
 
+  @Test func recipientOnlyUpdate() throws {
+    let fixture = try CLIFixture()
+    try fixture.instruction()
+    try fixture.commit()
+    try fixture.success(["instructions", "add", fixture.source.path, "--agent", "codex"])
+    let target = fixture.project.appendingPathComponent("AGENTS.md")
+    let bytes = try Data(contentsOf: target)
+    let declaration = try Data(contentsOf: fixture.state("agents.json"))
+    let lock = try Data(contentsOf: fixture.state("agents.resolved"))
+    let arguments = ["instructions", "update", "--agent", "cursor"]
+    let recipients = "Recipients of \(target.path): codex -> cursor\n"
+    let preview = try fixture.success(arguments)
+    #expect(preview.stdout.contains(recipients))
+    #expect(preview.stdout.contains("Preview only."))
+    #expect(!preview.stdout.contains("No instruction changes."))
+    #expect(!preview.stdout.contains("--- before/"))
+    let json = try fixture.success(arguments + ["--json"]).json()
+    #expect(json["changed"] as? Bool == true)
+    let changes = try #require(json["instructions"] as? [String: Any])
+    #expect(changes["changed"] as? Bool == true)
+    let targets = try #require(changes["targets"] as? [[String: Any]])
+    #expect(targets.count == 1)
+    let change = try #require(targets.first)
+    #expect(
+      Set(change.keys) == [
+        "target", "path", "changed", "agentsChanged", "beforeAgents", "afterAgents",
+        "before", "after", "drift", "adoptedSections", "conflicts",
+      ])
+    #expect(change["changed"] as? Bool == false && change["agentsChanged"] as? Bool == true)
+    #expect(change["beforeAgents"] as? [String] == ["codex"])
+    #expect(change["afterAgents"] as? [String] == ["cursor"])
+    #expect(change["before"] as? [String: String] == change["after"] as? [String: String])
+    #expect(try Data(contentsOf: target) == bytes)
+    #expect(try Data(contentsOf: fixture.state("agents.json")) == declaration)
+    #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
+    let applied = try fixture.success(arguments + ["--apply"])
+    #expect(applied.stdout.contains(recipients))
+    #expect(applied.stdout.contains("Applied instruction update."))
+    #expect(try Data(contentsOf: target) == bytes)
+    let clean = try fixture.success(["instructions", "update", "--json"]).json()
+    #expect(clean["changed"] as? Bool == false)
+    let cleanChanges = try #require(clean["instructions"] as? [String: Any])
+    #expect(cleanChanges["changed"] as? Bool == false)
+    let cleanTargets = try #require(cleanChanges["targets"] as? [[String: Any]])
+    #expect(cleanTargets.first?["beforeAgents"] as? [String] == ["cursor"])
+    #expect(cleanTargets.first?["afterAgents"] as? [String] == ["cursor"])
+    #expect(cleanTargets.first?["agentsChanged"] as? Bool == false)
+    let unchanged = try fixture.success(arguments)
+    #expect(unchanged.stdout == "No instruction changes.\n")
+  }
+
   @Test func claudeForwardingAndRecipientChanges() throws {
     let fixture = try CLIFixture()
     try fixture.instruction()
@@ -185,6 +236,25 @@ struct InstructionExecutableTests {
     let preview = try fixture.success(["instructions", "update", "--agent", "gemini-cli", "--json"])
       .json()
     #expect(preview["changed"] as? Bool == true)
+    let changes = try #require(preview["instructions"] as? [String: Any])
+    let targets = try #require(changes["targets"] as? [[String: Any]])
+    let added = try #require(targets.first { $0["target"] as? String == "GEMINI.md" })
+    #expect(added["beforeAgents"] is NSNull)
+    #expect(added["afterAgents"] as? [String] == ["gemini-cli"])
+    #expect(added["agentsChanged"] as? Bool == true && added["before"] == nil)
+    let removed = try #require(targets.first { $0["target"] as? String == "AGENTS.md" })
+    #expect(removed["beforeAgents"] as? [String] == ["claude-code", "codex"])
+    #expect(removed["afterAgents"] as? [String] == [])
+    let human = try fixture.success(["instructions", "update", "--agent", "gemini-cli"])
+    for (name, recipients) in [
+      ("AGENTS.md", "claude-code, codex -> none"), ("GEMINI.md", "none -> gemini-cli"),
+    ] {
+      let path = fixture.project.appendingPathComponent(name).path
+      let recipientsIndex = try #require(
+        human.stdout.range(of: "Recipients of \(path): \(recipients)\n")?.lowerBound)
+      let diffIndex = try #require(human.stdout.range(of: "--- before/\(path)\n")?.lowerBound)
+      #expect(recipientsIndex < diffIndex)
+    }
     #expect(try Data(contentsOf: fixture.state("agents.json")) == before)
     try fixture.success(["instructions", "update", "--agent", "gemini-cli", "--apply"])
     #expect(try String(contentsOf: claude, encoding: .utf8) == custom)
