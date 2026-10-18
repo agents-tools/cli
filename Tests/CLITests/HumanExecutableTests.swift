@@ -42,6 +42,42 @@ struct HumanExecutableTests {
     #expect(removed.hasSuffix("Removed commits from AGENTS.md.\n"))
   }
 
+  @Test func upstreamControlsAndEmptyFiles() throws {
+    let fixture = try CLIFixture()
+    try fixture.skill("pdf", body: "a\tb\r\nControl: \u{1b}[31m\0")
+    try fixture.instruction()
+    let removed = fixture.source.appendingPathComponent("skills/pdf/old-empty")
+    let added = fixture.source.appendingPathComponent("skills/pdf/new-empty")
+    try Data().write(to: removed)
+    try fixture.commit()
+    try fixture.success(["skills", "add", fixture.source.path, "pdf"])
+    try fixture.success(["watch", "add", fixture.source.path])
+    try fixture.skill("pdf", body: "a\tc\nControl: \u{1b}[32m\0")
+    try FileManager.default.removeItem(at: removed)
+    try Data().write(to: added)
+    try fixture.commit()
+    for arguments in [["skills", "update"], ["watch", "diff", fixture.source.path, "pdf"]] {
+      let output = try fixture.success(arguments).stdout
+      #expect(output.contains("-a\tb\\r\n"))
+      #expect(output.contains("+a\tc\n"))
+      #expect(output.contains("-Control: \\x1b[31m\\x00\n"))
+      #expect(output.contains("+Control: \\x1b[32m\\x00\n"))
+      #expect(output.contains("empty file pdf/new-empty added\n"))
+      #expect(output.contains("empty file pdf/old-empty removed\n"))
+      #expect(!output.contains("+++ b/pdf/new-empty") && !output.contains("--- a/pdf/old-empty"))
+      #expect(!output.contains("\u{1b}") && !output.contains("\r") && !output.contains("\0"))
+    }
+    try fixture.success(["instructions", "add", fixture.source.path])
+    try fixture.declarePrompt()
+    try Data("Prompt\tcontent\r\n\u{1b}[31m\0\n".utf8).write(
+      to: fixture.project.appendingPathComponent("prompt-custom.md"))
+    try fixture.success(["instructions", "update", "--apply"])
+    let prompt = try fixture.success(["instructions", "render", "chatgpt", "weekly"]).stdout
+    #expect(prompt.contains("Prompt\tcontent\\r\n\\x1b[31m\\x00\n"))
+    let error = try fixture.run(["--unknown\u{1b}[31m"])
+    #expect(error.stderr.contains("\\x1b[31m") && !error.stderr.contains("\u{1b}"))
+  }
+
   @Test func editRecipientChangeAndClaudeForwarding() throws {
     let fixture = try CLIFixture()
     try fixture.skill("pdf")

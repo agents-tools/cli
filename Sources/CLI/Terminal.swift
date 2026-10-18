@@ -27,8 +27,23 @@ enum Terminal {
   static func error(_ text: String) { notice("Error: \(text)") }
 
   static func line(_ text: String) -> String {
-    text.unicodeScalars.map { CharacterSet.controlCharacters.contains($0) ? " " : String($0) }
-      .joined()
+    text.unicodeScalars.map { scalar in
+      switch scalar {
+      case "\t": return "\t"
+      case "\n": return "\\n"
+      case "\r": return "\\r"
+      default:
+        guard CharacterSet.controlCharacters.contains(scalar) else { return String(scalar) }
+        let hex = String(scalar.value, radix: 16)
+        return scalar.value <= 0xff
+          ? "\\x" + String(repeating: "0", count: 2 - hex.count) + hex
+          : "\\u{" + hex + "}"
+      }
+    }.joined()
+  }
+
+  static func text(_ text: String) -> String {
+    text.components(separatedBy: "\n").map(line).joined(separator: "\n")
   }
 
   static func failureMessage(_ error: Error, command: any ParsableCommand) -> String {

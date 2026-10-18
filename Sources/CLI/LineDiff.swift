@@ -1,6 +1,6 @@
 import Foundation
 
-/// Unified line diffs with three lines of context. Line terminators participate in equality.
+/// Readable unified diffs with three context lines and visibly escaped control characters.
 enum LineDiff {
   private struct Line: Equatable {
     let text: String
@@ -39,6 +39,8 @@ enum LineDiff {
     guard let old = lines(before ?? Data()), let new = lines(after ?? Data()) else {
       return "Binary file \(path) differs\n"
     }
+    if before == nil && after?.isEmpty == true { return "empty file \(path) added\n" }
+    if after == nil && before?.isEmpty == true { return "empty file \(path) removed\n" }
     let oldPath = before == nil ? "/dev/null" : "a/\(path)"
     let newPath = after == nil ? "/dev/null" : "b/\(path)"
     var output = "--- \(oldPath)\n+++ \(newPath)\n"
@@ -83,10 +85,10 @@ enum LineDiff {
   }
 
   private static func lines(_ data: Data) -> [Line]? {
-    guard !data.contains(0), let text = String(data: data, encoding: .utf8) else { return nil }
+    guard let text = String(data: data, encoding: .utf8) else { return nil }
     if text.isEmpty { return [] }
     var parts = text.components(separatedBy: "\n")
-    let terminated = text.hasSuffix("\n")
+    let terminated = data.last == 10
     if terminated { parts.removeLast() }
     return parts.enumerated().map {
       Line(text: $0.element, terminated: $0.offset < parts.count - 1 || terminated)

@@ -173,9 +173,10 @@ source alias (here `rules`):
 Merge this fragment with the declaration's existing sources and selections.
 `append` is optional and relative to the project root or HOME for user scope.
 Run `agents instructions update` to preview, then `--apply` to lock the prompt.
-`agents instructions render chatgpt weekly` writes exactly the locked sections
-in declared order, followed by the current append file bytes, without markers
-or status text. It does not resolve upstream versions. An absent prompt or one
+`agents instructions render chatgpt weekly` writes the locked sections in
+declared order, followed by the current append file content, without markers
+or status text. Tabs and line breaks are preserved; other control characters
+use visible escapes. It does not resolve upstream versions. An absent prompt or one
 without locked sections fails. Add `--scope user` for a user prompt.
 
 Update previews and `--apply` list changed prompts. Re-paste changed prompts;
@@ -295,11 +296,16 @@ AGENTS.md (claude-code, codex)
 Preview only. Run again with --apply to write these changes.
 ```
 
-All file comparisons use unified line diffs with three lines of context and
+Human diffs are for reading. JSON reports carry exact content bytes in base64.
+Tabs print verbatim; other control characters in payload lines and upstream
+text use visible escapes such as `\r`, `\x1b`, `\x00`, or `\u{202e}`. Rendered
+ChatGPT Markdown preserves line breaks and tabs and uses the same escaping.
+
+File comparisons use unified line diffs with three lines of context and
 `--- a/<path>`, `+++ b/<path>`, and `@@` hunk headers. New files use
 `--- /dev/null`; removed files use `+++ /dev/null`. Missing trailing newlines
 are marked with `\ No newline at end of file`. Empty file creation or removal
-has file headers without a hunk. Binary, mode, link, and directory changes use
+prints only `empty file <path> added` or `empty file <path> removed`. Binary, mode, link, and directory changes use
 the same rendering as watch diffs. Watch diffs include executable-mode changes;
 skill update diffs compare content bytes, links, and directories.
 
@@ -421,9 +427,9 @@ Error: Unknown option '--all'. Did you mean '--path'? Run 'agents --help' for us
 
 A declared ChatGPT prompt without locked sections retains the diagnostic
 `A ChatGPT prompt must have at least one locked section.`
-Terminal control characters in human-readable source text are replaced by spaces.
-ChatGPT render preserves its content exactly, including whitespace and the
-append file's final newline behavior; only diagnostics go to stderr.
+Human-readable source text preserves tabs and visibly escapes other control
+characters. ChatGPT render also preserves line breaks and the append file's
+final newline behavior; only diagnostics go to stderr.
 
 | Code | Meaning |
 | --- | --- |

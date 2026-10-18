@@ -190,7 +190,7 @@ struct WatchExecutableTests {
     #expect(diff.contains("mode shared/run.sh: 644 -> 755\n"))
     #expect(diff.contains("link shared/link: run.sh -> SKILL.md\n"))
     #expect(diff.contains("Binary file shared/data.bin differs\n"))
-    #expect(!diff.contains("\u{1B}") && !diff.contains("\t"))
+    #expect(!diff.contains("\u{1B}") && diff.contains("Changed\\x1b[31m instructions\t"))
     let json = try fixture.success([
       "watch", "diff", "source", "shared", "--kind", "skill", "--json",
     ]).json()

@@ -189,7 +189,7 @@ struct RenderChatGPT: ParsableCommand {
       }
       return try InstructionOperations.renderChatGPT(prompt: prompt, scope: location.scope)
     }
-    FileHandle.standardOutput.write(bytes)
+    Terminal.write(Terminal.text(String(decoding: bytes, as: UTF8.self)))
   }
 }
 

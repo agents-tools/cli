@@ -45,8 +45,8 @@ struct HumanOutputTests {
     )
     #expect(diff("same", "same\n").contains("-same\n\\ No newline at end of file\n+same\n"))
     #expect(diff("", "line\n").contains("@@ -0,0 +1 @@\n+line\n"))
-    #expect(diff(nil, "") == "--- /dev/null\n+++ b/rules.md\n")
-    #expect(diff("", nil) == "--- a/rules.md\n+++ /dev/null\n")
+    #expect(diff(nil, "") == "empty file rules.md added\n")
+    #expect(diff("", nil) == "empty file rules.md removed\n")
     #expect(diff("", "").isEmpty && diff(nil, nil).isEmpty)
     #expect(diff("same\n", "same\n").isEmpty)
   }
@@ -59,7 +59,7 @@ struct HumanOutputTests {
   }
 
   @Test func binaryAndEntryKinds() {
-    for bytes in [Data([255]), Data([0])] {
+    for bytes in [Data([255]), Data([0, 255])] {
       #expect(
         LineDiff.render(before: Data(), after: bytes, path: "file") == "Binary file file differs\n")
     }
@@ -82,7 +82,25 @@ struct HumanOutputTests {
       after: .file(Data("new\n".utf8), executable: false)
     ) { output += $0 }
     #expect(!output.contains("mode") && output.contains("@@ -1 +1 @@"))
-    #expect(diff(nil, "text\t\u{1B}").contains("+text  \n"))
+  }
+
+  @Test func tabsAndControlCharactersStayVisible() {
+    #expect(diff("a\tb\n", "a\tc\n").contains("-a\tb\n+a\tc\n"))
+    #expect(
+      diff("same\r\n", "same\n") == "--- a/rules.md\n+++ b/rules.md\n@@ -1 +1 @@\n-same\\r\n+same\n"
+    )
+    #expect(diff("old\r\n", "new\r\n").contains("-old\\r\n+new\\r\n"))
+    #expect(diff(nil, "text\t\u{1b}[31m\0\n").contains("+text\t\\x1b[31m\\x00\n"))
+    #expect(diff("old\r", "new\r").contains("-old\\r\n\\ No newline at end of file\n"))
+    #expect(
+      Terminal.line("a\tb\r\n\u{7}\u{7f}\u{9b}\u{202e}") == "a\tb\\r\\n\\x07\\x7f\\x9b\\u{202e}")
+    #expect(Terminal.text("a\tb\r\n\u{1b}[31m\n") == "a\tb\\r\n\\x1b[31m\n")
+    for value in (0...0x9f).filter({ $0 != 9 && ($0 < 32 || $0 >= 0x7f) }) {
+      let control = String(Unicode.Scalar(value)!)
+      #expect(
+        !Terminal.line(control).unicodeScalars.contains(
+          where: CharacterSet.controlCharacters.contains))
+    }
   }
 
   @Test func pathsRespectScopeAndDirectoryBoundaries() {
