@@ -320,7 +320,7 @@ struct InstructionExecutableTests {
       applied.stdout.range(of: "Updated demo for codex.")?.lowerBound)
     let instructionsIndex = try #require(
       applied.stdout.range(of: "~ changed  canonical-artifacts (instructions)")?.lowerBound)
-    #expect(instructionsIndex < skillsIndex)
+    #expect(skillsIndex < instructionsIndex)
     #expect(applied.stdout.contains("Changed ChatGPT prompt weekly."))
     #expect(try String(contentsOf: skill, encoding: .utf8).contains("Updated skill"))
     #expect(try String(contentsOf: target, encoding: .utf8).contains("Updated section"))
@@ -328,6 +328,32 @@ struct InstructionExecutableTests {
     #expect(clean["changed"] as? Bool == false)
     let steadyInstall = try fixture.success(["install", "--json"]).json()
     #expect((steadyInstall["instructions"] as? [String: Any])?["changed"] as? Bool == false)
+  }
+
+  @Test func skillApplyCompletionSurvivesInstructionFailure() throws {
+    let fixture = try CLIFixture()
+    try fixture.skill("pdf")
+    try fixture.instruction()
+    try fixture.commit()
+    try fixture.success(["skills", "add", fixture.source.path, "pdf"])
+    try fixture.success(["instructions", "add", fixture.source.path])
+    let target = fixture.project.appendingPathComponent("AGENTS.md")
+    let invalid = try Data(contentsOf: target) + Data("\n<!-- END managed by agents -->\n".utf8)
+    try invalid.write(to: target)
+    try fixture.skill("pdf", body: "Updated content")
+    try fixture.commit()
+    let applied = try fixture.run(["update", "--apply"])
+    #expect(applied.status == 1 && !applied.stderr.isEmpty)
+    #expect(applied.stdout.hasSuffix("Updated pdf for claude-code, codex.\n"))
+    #expect(
+      applied.stdout.components(separatedBy: "Updated pdf for claude-code, codex.\n").count == 2)
+    #expect(!applied.stdout.contains("Updated AGENTS.md."))
+    for path in [".agents/skills/pdf/SKILL.md", ".claude/skills/pdf/SKILL.md"] {
+      #expect(
+        try String(contentsOf: fixture.project.appendingPathComponent(path), encoding: .utf8)
+          .contains("Updated content"))
+    }
+    #expect(try Data(contentsOf: target) == invalid)
   }
 
   @Test func instructionDoctorErrorsAndFailedJSON() throws {

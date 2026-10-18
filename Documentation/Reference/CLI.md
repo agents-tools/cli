@@ -335,7 +335,9 @@ means no recipients or no previous lock entry.
 `--apply` prints the preview before each core operation writes, followed by
 `Updated <skill> for <recipients>.` for skills and `Updated <path>.` for
 instruction targets. Removed skill recipients get
-`Removed <skill> for <recipients>.` There is no generic success banner.
+`Removed <skill> for <recipients>.` Skill completions print as soon as the skill
+operation succeeds, before instruction processing. There is no generic success
+banner.
 A preview can become stale; `--apply` resolves again and displays the content
 it will actually write. `--json --apply` is a usage error.
 

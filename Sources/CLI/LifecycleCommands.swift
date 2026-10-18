@@ -105,6 +105,7 @@ struct Update: ParsableCommand {
 
   func run() throws {
     let skills = try options.updateSkills()
+    if options.apply { options.finishSkills(skills.results, previous: skills.previous) }
     let instructions = try options.updateInstructions()
     if options.json {
       try Terminal.json(
@@ -112,7 +113,6 @@ struct Update: ParsableCommand {
           scope: options.location.scope.rawValue, results: skills.results,
           instructions: InstructionChanges(instructions)))
     } else if options.apply {
-      options.finishSkills(skills.results, previous: skills.previous)
       options.finishInstructions(instructions)
     } else {
       Terminal.updateDifferences(

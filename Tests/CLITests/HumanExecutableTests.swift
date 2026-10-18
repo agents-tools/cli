@@ -34,9 +34,8 @@ struct HumanExecutableTests {
       preview.contains("AGENTS.md (claude-code, codex)\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@"))
     #expect(!preview.contains("hash:") && !preview.contains("revision:"))
     let applied = try fixture.success(["update", "--apply"]).stdout
-    #expect(
-      applied.hasSuffix(
-        "Updated pdf for claude-code, codex.\nUpdated AGENTS.md.\n"))
+    #expect(applied.components(separatedBy: "Updated pdf for claude-code, codex.\n").count == 2)
+    #expect(applied.hasSuffix("Updated AGENTS.md.\n"))
     let removed = try fixture.success(["instructions", "remove", "commits"]).stdout
     #expect(removed.contains("--- a/AGENTS.md\n+++ b/AGENTS.md\n@@"))
     #expect(removed.hasSuffix("Removed commits from AGENTS.md.\n"))
