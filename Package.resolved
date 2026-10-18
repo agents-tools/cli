@@ -1,5 +1,5 @@
 {
-  "originHash" : "5098d524124ac7bcaea37b5b101624e423e5202cc42742276bb4eeab05355a85",
+  "originHash" : "6783650930743267e07d7ea15770433557a7d1324cd5b1e38ed138b68f11d469",
   "pins" : [
     {
       "identity" : "core",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/agents-tools/core.git",
       "state" : {
         "branch" : "master",
-        "revision" : "7a34ffcc4863389da50d8bd251e7aaab8acc2b34"
+        "revision" : "fab18bc6f0f0f9d5fea4a6353be7d0b5cfe33ed4"
       }
     },
     {

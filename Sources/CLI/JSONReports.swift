@@ -1,3 +1,4 @@
+import AgentsInstructions
 import AgentsSkills
 
 // These DTOs own the CLI schema independently of core's Codable representations.
@@ -68,11 +69,13 @@ struct UpdateReport: Encodable {
   let scope: String
   let changed: Bool
   let skills: [UpdateItem]
+  let instructions: InstructionChanges?
 
-  init(scope: String, results: [UpdateResult]) {
+  init(scope: String, results: [UpdateResult], instructions: InstructionChanges? = nil) {
     self.scope = scope
-    changed = results.contains(where: \.changed)
+    changed = results.contains(where: \.changed) || instructions?.changed == true
     skills = results.map(UpdateItem.init)
+    self.instructions = instructions
   }
 }
 
@@ -146,24 +149,39 @@ struct DoctorRoot: Encodable {
   let ok: Bool
   let checks: [CheckItem]
 
-  init(root: String, scope: String, report: DoctorReport) {
+  init(root: String, scope: String, report: DoctorReport, instructions: InstructionDoctorReport) {
     self.root = root
     self.scope = scope
-    ok = report.ok
-    checks = report.checks.map(CheckItem.init)
+    checks = report.checks.map(CheckItem.init) + instructions.diagnostics.map(CheckItem.init)
+    ok = !checks.contains { $0.status == "error" }
   }
 }
 
 struct CheckItem: Encodable {
+  let kind: String
   let id: String
   let status: String
   let message: String
   let path: String?
 
   init(_ check: DoctorCheck) {
+    kind = "skills"
     id = check.id
     status = check.status.rawValue
     message = check.message
     path = check.path
+  }
+
+  init(_ diagnostic: InstructionDiagnostic) {
+    kind = "instructions"
+    id = diagnostic.kind.rawValue
+    switch diagnostic.kind {
+    case .invalidTarget, .conflict, .invalidConfiguration, .stateUnavailable:
+      status = "error"
+    default:
+      status = "warning"
+    }
+    message = diagnostic.message
+    path = diagnostic.path?.path
   }
 }

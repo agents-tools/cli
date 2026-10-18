@@ -3,7 +3,7 @@
 - [CLI reference](Reference/CLI.md): shipped commands, options, output, errors,
   state locations, and JSON contracts.
 - [JSON schemas](Reference/Schemas/): machine-readable schemas for list,
-  update previews, and doctor.
+  update previews, installation, and doctor.
 
 The package manifest owns target and dependency configuration. Shared lifecycle
 architecture is documented in

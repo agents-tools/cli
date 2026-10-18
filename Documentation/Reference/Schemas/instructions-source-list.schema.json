@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Instruction source discovery, version 1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "source"
+    },
+    "scope": {
+      "enum": [
+        "project",
+        "user"
+      ]
+    },
+    "source": {
+      "type": "string"
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "heading": {
+            "type": "string"
+          },
+          "section": {
+            "$ref": "instructions.schema.json#/$defs/section"
+          }
+        },
+        "required": [
+          "heading",
+          "section"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "scope",
+    "source",
+    "sections"
+  ]
+}

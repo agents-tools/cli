@@ -1,8 +1,8 @@
 # agents
 
-`agents` manages agent skills from declared sources. Add skills once, restore
-their exact locked content with `install`, and preview upstream changes before
-applying an update. It supports Codex, Claude Code, Cursor, Gemini CLI, and
+`agents` manages agent skills and instructions from declared sources. Declare
+skills and instruction sections once, restore their exact locked content with
+`install`, and preview upstream changes before applying an update. It supports Codex, Claude Code, Cursor, Gemini CLI, and
 OpenCode through [agents-tools/core](https://github.com/agents-tools/core).
 
 The executable owns commands and terminal presentation. Core owns source
@@ -26,6 +26,10 @@ use `.build/release/agents` or `swift run agents`.
 agents skills add https://github.com/anthropics/skills.git --all --agent codex
 agents skills list
 agents skills list --scope user --json
+agents instructions add /path/to/rules canonical-artifacts
+agents instructions list
+agents instructions update --apply
+agents instructions render chatgpt weekly | pbcopy
 agents install
 agents update
 agents update --apply
@@ -36,6 +40,18 @@ agents doctor --root /path/to/project-a /path/to/project-b --json
 
 Project scope is the default and uses the current directory. User scope is
 selected with `--scope user`. Commands never prompt for confirmation.
+
+Instructions are Markdown sections discovered in a source's `instructions/` or
+`.agents/instructions/` directory. Managed blocks preserve surrounding custom
+content in agent files, with Claude forwarding where needed. `--agent` on
+instructions add, remove, or update sets the recipients of the scope's entire
+section list. `agents instructions init <name>` creates `<name>.md`.
+
+Named ChatGPT prompts are declared in `agents.json` and locked with
+`agents instructions update --apply`; render emits only their locked sections
+and optional custom content. Updates identify changed prompts to re-paste.
+Top-level `install`, `update`, and `doctor` process skills then instructions,
+including combined `--json` reports.
 See the [CLI reference](Documentation/Reference/CLI.md) for options, state
 locations, JSON schemas, and exit codes.
 

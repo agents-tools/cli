@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Managed instructions, version 1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "installed"
+    },
+    "scope": {
+      "enum": [
+        "project",
+        "user"
+      ]
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "$ref": "instructions.schema.json#/$defs/section"
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string"
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "headingOffset": {
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "import": {
+            "type": "string"
+          },
+          "blockHash": {
+            "type": "string"
+          },
+          "created": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "target",
+          "agents",
+          "blockHash",
+          "created"
+        ]
+      }
+    },
+    "prompts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "instructions.schema.json#/$defs/section"
+            }
+          },
+          "append": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "sections"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "scope",
+    "sections",
+    "targets",
+    "prompts"
+  ]
+}

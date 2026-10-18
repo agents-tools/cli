@@ -44,7 +44,7 @@ struct ExecutableTests {
     #expect(human.stdout.contains("-Original content"))
     #expect(human.stdout.contains("+Updated upstream content"))
     let preview = try fixture.success(["update", "--json"] + scopeArguments).json()
-    #expect(Set(preview.keys) == ["schemaVersion", "scope", "changed", "skills"])
+    #expect(Set(preview.keys) == ["schemaVersion", "scope", "changed", "skills", "instructions"])
     #expect(preview["schemaVersion"] as? Int == 1 && preview["changed"] as? Bool == true)
     let updates = try #require(preview["skills"] as? [[String: Any]])
     let update = try #require(updates.first)
@@ -161,7 +161,7 @@ struct ExecutableTests {
     let dirtyRoots = try #require(dirty["roots"] as? [[String: Any]])
     let checks = try #require(dirtyRoots.first?["checks"] as? [[String: Any]])
     let check = try #require(checks.first)
-    #expect(Set(check.keys) == ["id", "status", "message", "path"])
+    #expect(Set(check.keys) == ["kind", "id", "status", "message", "path"])
     #expect(check["id"] as? String == "uncommitted-source")
     #expect(check["status"] as? String == "warning" && dirty["ok"] as? Bool == true)
   }
@@ -246,13 +246,17 @@ struct ExecutableTests {
   @Test func rootHelpExamples() throws {
     let fixture = try CLIFixture()
     let result = try fixture.success(["--help"])
-    #expect(result.stdout.contains("OVERVIEW: Manage agent skills from declared sources."))
+    #expect(
+      result.stdout.contains(
+        "OVERVIEW: Manage agent skills and instructions from declared sources."))
     #expect(
       result.stdout.contains(
         """
         Examples:
           agents skills add github.com/owner/skills pdf-forms
           agents skills list
+          agents instructions add <source> canonical-artifacts
+          agents instructions render chatgpt <prompt> | pbcopy
           agents install
           agents update               Preview what re-resolving would change
           agents update --apply       Write the updates and the new lock

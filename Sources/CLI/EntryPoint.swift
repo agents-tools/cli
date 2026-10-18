@@ -9,16 +9,18 @@ enum BuildInfo {
 struct Agents: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "agents",
-    abstract: "Manage agent skills from declared sources.",
+    abstract: "Manage agent skills and instructions from declared sources.",
     discussion: """
       Examples:
         agents skills add github.com/owner/skills pdf-forms
         agents skills list
+        agents instructions add <source> canonical-artifacts
+        agents instructions render chatgpt <prompt> | pbcopy
         agents install
         agents update               Preview what re-resolving would change
         agents update --apply       Write the updates and the new lock
       """,
-    subcommands: [Skills.self, Install.self, Update.self, Doctor.self]
+    subcommands: [Skills.self, InstructionsCommand.self, Install.self, Update.self, Doctor.self]
   )
 
   @Flag(help: "Show the version.") var version = false
