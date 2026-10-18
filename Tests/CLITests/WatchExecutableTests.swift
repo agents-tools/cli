@@ -87,12 +87,12 @@ struct WatchExecutableTests {
 
     let expected = """
       \(sourceID)  3 commits since \(initial.prefix(7)) (now \(current.prefix(7)))
-        - removed  legacy-rules (instructions)
         + new      new-rules (instructions)
-        ~ changed  team-rules (instructions)   1 file
-        ~ changed  frontend-design   2 files
-        - removed  legacy-docx
         + new      pdf-forms
+        ~ changed  frontend-design   2 files
+        ~ changed  team-rules (instructions)   1 file
+        - removed  legacy-docx
+        - removed  legacy-rules (instructions)
 
       """
     #expect(try fixture.success(["watch", "status"] + scopeOptions).stdout == expected)

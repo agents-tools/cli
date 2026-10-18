@@ -17,7 +17,7 @@ extension Terminal {
         summary = "up to date"
       }
       write("\(line(status.sourceID))  \(line(summary))\n")
-      for item in status.changes {
+      for item in displayOrder(status.changes) {
         let kind = item.kind == .skill ? "" : " (\(item.kind.rawValue))"
         let count = item.fileCount
         let files = item.change == .changed ? "   \(count) \(count == 1 ? "file" : "files")" : ""
@@ -28,13 +28,34 @@ extension Terminal {
 
   static func watchDifferences(_ status: WatchStatus) {
     if status.changes.isEmpty { write("up to date\n") }
-    for item in status.changes {
+    for item in displayOrder(status.changes) {
       write("\(watchChangeLabel(item.change))\(line(item.name)) (\(item.kind.rawValue))\n")
       for file in item.files {
         write("--- before/\(line(file.path))\n+++ after/\(line(file.path))\n")
         snapshot(file.before, prefix: "-")
         snapshot(file.after, prefix: "+")
       }
+    }
+  }
+
+  /// New, changed, then removed items; by name, with skills before instructions and artifacts.
+  static func displayOrder(_ changes: [WatchItemChange]) -> [WatchItemChange] {
+    func rank(_ change: WatchChangeKind) -> Int {
+      switch change {
+      case .new: 0
+      case .changed: 1
+      case .removed: 2
+      }
+    }
+    func rank(_ kind: WatchItemKind) -> Int {
+      switch kind {
+      case .skill: 0
+      case .instructions: 1
+      case .artifact: 2
+      }
+    }
+    return changes.sorted {
+      (rank($0.change), $0.name, rank($0.kind)) < (rank($1.change), $1.name, rank($1.kind))
     }
   }
 

@@ -61,7 +61,8 @@ struct WatchReportTests {
     output = ""
     Terminal.watchStatus(try expanded.status(environment: environment)) { output += $0 }
     #expect(output.hasPrefix("\(location)  2 artifacts changed\n"))
-    #expect(output.hasSuffix("  + new      new (artifact)\n"))
+    #expect(
+      output.hasSuffix("  + new      new (artifact)\n  ~ changed  demo (artifact)   1 file\n"))
   }
 
   @Test func watchSnapshotsPreserveEntryKindsAndSanitizeText() throws {
