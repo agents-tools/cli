@@ -112,7 +112,7 @@ enum Terminal {
 
   static func joiningError(_ message: String, remedy: String) -> String {
     func sentence(_ text: String, capitalize: Bool) -> String {
-      var text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+      var text = text.trimmingCharacters(in: CharacterSet(charactersIn: " "))
       if capitalize, let first = text.first {
         text = first.uppercased() + text.dropFirst()
       }

@@ -75,6 +75,9 @@ struct HumanExecutableTests {
     #expect(prompt.contains("Prompt\tcontent\\r\n\\x1b[31m\\x00\n"))
     let error = try fixture.run(["--unknown\u{1b}[31m"])
     #expect(error.stderr.contains("\\x1b[31m") && !error.stderr.contains("\u{1b}"))
+    let missing = try fixture.run(["instructions", "add", fixture.source.path, "missing\r\n\t"])
+    #expect(missing.status == 1)
+    #expect(missing.stderr.contains("missing\\r\\n\t."))
   }
 
   @Test func editRecipientChangeAndClaudeForwarding() throws {

@@ -144,6 +144,12 @@ struct HumanOutputTests {
     #expect(HumanItem.pin(revision: nil) == "none")
   }
 
+  @Test func errorSentencesKeepTrailingControls() {
+    let joined = Terminal.joiningError("Problem\r\n\t", remedy: "try again")
+    #expect(joined == "Problem\r\n\t. Try again.")
+    #expect(Terminal.line(joined) == "Problem\\r\\n\t. Try again.")
+  }
+
   @Test(arguments: ["Problem", "Problem.", "Problem?", "Problem!", "Problem。"])
   func errorsKeepPunctuation(_ message: String) {
     let result = Terminal.joiningError(message, remedy: "try again")
