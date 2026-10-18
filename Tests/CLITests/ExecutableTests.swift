@@ -203,7 +203,9 @@ struct ExecutableTests {
     let paths = try FileManager.default.subpathsOfDirectory(atPath: state.path).sorted()
     let before = try files.map { try Data(contentsOf: $0) }
     let remedy =
-      "run any command that changes this scope, such as 'agents install', to finish recovery"
+      scope == "user"
+      ? "run 'agents install --scope user' to finish recovery"
+      : "run 'agents install' in '\(fixture.project.path)' to finish recovery"
     for json in [false, true] {
       let result = try fixture.run(["doctor", "--scope", scope] + (json ? ["--json"] : []))
       #expect(result.status == 1 && result.stderr.isEmpty)
@@ -228,10 +230,40 @@ struct ExecutableTests {
         #expect(result.stdout.contains("skills error: Transaction recovery is pending"))
         #expect(result.stdout.contains("instructions error: Transaction recovery is pending"))
         #expect(result.stdout.contains(remedy))
+        #expect(result.stdout.contains("(\(state.path))"))
       }
       #expect(try FileManager.default.subpathsOfDirectory(atPath: state.path).sorted() == paths)
       #expect(try files.map { try Data(contentsOf: $0) } == before)
     }
+  }
+
+  @Test func doctorNamesUserScopeRecoveryWhileAuditingProject() throws {
+    let fixture = try CLIFixture()
+    let state = fixture.state("", scope: "user")
+    try FileManager.default.createDirectory(at: state, withIntermediateDirectories: true)
+    let journal = fixture.state("transaction.json", scope: "user")
+    try Data("{}".utf8).write(to: journal)
+    let message =
+      "Transaction recovery is pending; run 'agents install --scope user' to finish recovery."
+    let human = try fixture.run(["doctor", "--root", fixture.source.path])
+    #expect(human.status == 1 && human.stderr.isEmpty)
+    #expect(
+      human.stdout
+        == "\(fixture.source.path) (project)\n  instructions error: \(message) (\(state.path))\n")
+    let json = try fixture.run(["doctor", "--root", fixture.source.path, "--json"])
+    #expect(json.status == 1 && json.stderr.isEmpty)
+    let report = try json.json()
+    #expect(report["ok"] as? Bool == false)
+    let roots = try #require(report["roots"] as? [[String: Any]])
+    let checks = try #require(roots.first?["checks"] as? [[String: String]])
+    #expect(
+      checks == [
+        [
+          "kind": "instructions", "id": "pendingRecovery", "status": "error",
+          "message": message, "path": state.path,
+        ]
+      ])
+    #expect(try Data(contentsOf: journal) == Data("{}".utf8))
   }
 
   @Test func previewDescribesEntryTypesAndDeletions() throws {
@@ -294,6 +326,58 @@ struct ExecutableTests {
     #expect(result.stdout.contains("USAGE:"))
     let isRoot = arguments.isEmpty || arguments == ["--help"] || arguments == ["help"]
     #expect(result.stdout.contains("--version") == isRoot)
+  }
+
+  @Test(arguments: [
+    ["--help", "--", "unknown"], ["skills", "--help", "--", "unknown"],
+    ["skills", "-h", "--", "unknown"],
+    ["instructions", "render", "--help", "--", "unknown"],
+    ["instructions", "render", "-h", "--", "unknown"],
+  ])
+  func helpStopsCommandValidationAtTerminator(_ arguments: [String]) throws {
+    let fixture = try CLIFixture()
+    #expect(try fixture.success(arguments).stdout.contains("USAGE:"))
+  }
+
+  @Test(arguments: [
+    ["skills", "--", "unknown"], ["instructions", "render", "--", "unknown"],
+  ])
+  func terminatedArgumentsAreNotCommands(_ arguments: [String]) throws {
+    let fixture = try CLIFixture()
+    let result = try fixture.run(arguments)
+    #expect(result.status == 64 && result.stdout.isEmpty)
+    #expect(result.stderr.contains("Unexpected argument 'unknown'"))
+  }
+
+  @Test(arguments: [
+    ["help", "skills", "list", "--scope", "user"],
+    ["help", "skills", "list", "--scope=user"],
+    ["help", "instructions", "render", "chatgpt", "--scope", "user"],
+  ])
+  func helpOptionValuesAreNotCommands(_ arguments: [String]) throws {
+    let fixture = try CLIFixture()
+    let result = try fixture.run(arguments)
+    #expect(result.status == 64 && result.stdout.isEmpty)
+    #expect(result.stderr.contains("Unknown option '--scope'"))
+  }
+
+  @Test func commandsAcceptOptionsAndPositionals() throws {
+    let fixture = try CLIFixture()
+    try fixture.skill("unknown")
+    try fixture.commit()
+    let listing = try fixture.success([
+      "skills", "list", "--json", "--path", "skills", fixture.source.path,
+      "--scope=user", "--full-depth",
+    ]).json()
+    let skills = try #require(listing["skills"] as? [[String: Any]])
+    #expect(skills.compactMap { $0["name"] as? String } == ["unknown"])
+    try fixture.success([
+      "skills", "add", "--scope", "user", "--agent", "codex", "--mode=copy",
+      fixture.source.path, "unknown",
+    ])
+    #expect(
+      FileManager.default.fileExists(
+        atPath: fixture.home.appendingPathComponent(".agents/skills/unknown/SKILL.md").path))
   }
 
   @Test func rootHelpExamples() throws {
@@ -363,11 +447,22 @@ struct ExecutableTests {
   @Test(arguments: [
     ["unknown"], ["skills", "unknown"], ["help", "unknown"], ["skills", "remove"],
     ["skills", "help", "unknown"], ["help", "skills", "unknown"],
-    ["unknown", "--help"], ["skills", "unknown", "--help"],
+    ["unknown", "--help"], ["--help", "unknown"], ["-h", "unknown"],
+    ["skills", "unknown", "--help"], ["skills", "--help", "unknown"],
+    ["skills", "unknown", "-h"], ["skills", "-h", "unknown"],
+    ["--help", "-"], ["skills", "--help", "-"], ["skills", "-", "-h"],
     ["instructions", "unknown"], ["instructions", "unknown", "--help"],
+    ["instructions", "--help", "unknown"],
     ["instructions", "render", "unknown"], ["instructions", "render", "unknown", "--help"],
+    ["instructions", "render", "--help", "unknown"],
+    ["instructions", "render", "unknown", "-h"], ["instructions", "render", "-h", "unknown"],
+    ["instructions", "render", "-h", "-"], ["instructions", "render", "-", "--help"],
+    ["instructions", "--help", "render", "unknown"],
     ["help", "unknown", "--help"], ["skills", "help", "unknown", "--help"],
     ["help", "instructions", "render", "unknown", "--help"],
+    ["help", "skills", "list", "--scope=user", "unknown"],
+    ["--version", "--help", "unknown"], ["skills", "--version", "--help", "unknown"],
+    ["instructions", "render", "--version", "-h", "unknown"],
     ["install", "--agent", "codex"], ["install", "--mode", "copy"],
     ["skills", "add", ".", "--exact", "bad"], ["update", "--json", "--apply"],
     ["skills", "--version"], ["skills", "add", ".", "--version"],
@@ -385,6 +480,8 @@ struct ExecutableTests {
     #expect(result.stderr.contains("agents --help"))
     if arguments.contains("unknown") {
       #expect(result.stderr.contains("Unknown command 'unknown'"))
+    } else if arguments.contains("-") {
+      #expect(result.stderr.contains("Unknown command '-'"))
     }
   }
 

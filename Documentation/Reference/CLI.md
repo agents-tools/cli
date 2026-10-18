@@ -240,8 +240,10 @@ declarations, locks, or installations. Doctor inspects existing state without
 fetching sources, writing caches, or creating locks. A pending transaction is
 reported as skill check `pending-recovery` and instruction diagnostic
 `pendingRecovery`. Both are error checks: the state is inconsistent until
-recovery, so doctor sets `ok` to false and exits 1. The remedy is to run any
-command that changes this scope, such as `agents install`, to finish recovery.
+recovery, so doctor sets `ok` to false and exits 1. Human output includes the
+affected state directory, which can belong to the other scope. To finish
+recovery, run `agents install --scope user` for `~/.agents`, or run
+`agents install` in the project root for that project's `.agent` directory.
 
 Commands that change a scope finish pending recovery before proceeding. When
 core reports recovery, the CLI prints a notice on stderr and retries that
@@ -264,8 +266,9 @@ append file's final newline behavior; only diagnostics go to stderr.
 | `64` | Invalid usage, including unknown commands, options, or invalid option combinations |
 
 Unknown commands and subcommands report `Unknown command '<name>'` and exit
-64 even when followed by `--help`. Both `agents unknown --help` and
-`agents skills unknown --help` are usage errors.
+64 even when `--help` or `-h` comes before or after the unknown name. Both
+`agents unknown --help` and `agents skills --help unknown` are usage errors.
+Command-path validation stops at `--`; leaf command positionals remain arguments.
 
 Doctor's `ok` means there are no error checks; warnings do not make it false.
 Instruction `invalidTarget`, `conflict`, `invalidConfiguration`, and

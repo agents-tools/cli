@@ -45,11 +45,11 @@ enum EntryPoint {
     var command: any ParsableCommand
     do {
       let arguments = Array(CommandLine.arguments.dropFirst())
+      try validateCommandPath(arguments)
       let options = arguments.prefix { $0 != "--" }
       if options.contains("--version"), options.contains(where: { !$0.hasPrefix("-") }) {
         throw ValidationError("--version is only available on 'agents'")
       }
-      try validateHelpPath(arguments)
       command = try Agents.parseAsRoot(arguments)
     } catch {
       let code = Agents.exitCode(for: error)
@@ -76,11 +76,19 @@ enum EntryPoint {
     }
   }
 
-  private static func validateHelpPath(_ arguments: [String]) throws {
+  private static func validateCommandPath(_ arguments: [String]) throws {
     var parent: any ParsableCommand.Type = Agents.self
     var isHelp = false
-    for name in arguments {
-      if name.hasPrefix("-") { return }
+    var tokens = arguments.makeIterator()
+    while let name = tokens.next() {
+      if name == "--" { return }
+      if name != "-", name.hasPrefix("-") {
+        if name == "--help" || name == "-h" { continue }
+        if !name.contains("="), try takesValue(name, command: parent) {
+          if tokens.next() == "--" { return }
+        }
+        continue
+      }
       if name == "help", !isHelp, !parent.configuration.subcommands.isEmpty {
         isHelp = true
         continue
@@ -95,5 +103,33 @@ enum EntryPoint {
       }
       parent = child
     }
+  }
+
+  private static func takesValue(_ name: String, command: any ParsableCommand.Type) throws -> Bool {
+    let help = try JSONDecoder().decode(CommandHelp.self, from: Data(command._dumpHelp().utf8))
+    return help.command.arguments.contains { argument in
+      argument.kind == "option"
+        && argument.names?.contains {
+          ($0.kind == "long" ? "--" : "-") + $0.name == name
+        } == true
+    }
+  }
+}
+
+private struct CommandHelp: Decodable {
+  let command: Definition
+
+  struct Definition: Decodable {
+    let arguments: [Argument]
+  }
+
+  struct Argument: Decodable {
+    let kind: String
+    let names: [Name]?
+  }
+
+  struct Name: Decodable {
+    let kind: String
+    let name: String
   }
 }

@@ -179,7 +179,8 @@ struct Doctor: ParsableCommand {
       reports.append(
         DoctorRoot(
           root: location.scope == .user ? environment.homeDirectory.path : project.path,
-          scope: location.scope.rawValue, report: report, instructions: instructions))
+          scope: location.scope.rawValue, report: report, instructions: instructions,
+          environment: runtime))
     }
     let report = DoctorOutput(roots: reports)
     if json {
@@ -189,7 +190,9 @@ struct Doctor: ParsableCommand {
         Terminal.write("\(Terminal.line(root.root)) (\(root.scope))\n")
         if root.checks.isEmpty { Terminal.write("  No problems found.\n") }
         for check in root.checks {
-          Terminal.write("  \(check.kind) \(check.status): \(Terminal.line(check.message))\n")
+          let path = check.path.map { " (\(Terminal.line($0)))" } ?? ""
+          Terminal.write(
+            "  \(check.kind) \(check.status): \(Terminal.line(check.message))\(path)\n")
         }
       }
     }
