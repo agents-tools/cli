@@ -144,10 +144,12 @@ validation:
 ```sh
 brew fetch --force --build-from-source "$test_tap/$formula_name" &&
   brew install --build-from-source "$test_tap/$formula_name" &&
-  brew test "$test_tap/$formula_name"
+  brew test "$test_tap/$formula_name" &&
+  actual=$(agents --version) &&
+  test "$actual" = "agents $version"
 ```
 
-Verify installed `agents --version` prints `agents $version`. Publish the tap
-change only after its candidate passes; remove the disposable environment
-afterward. Record the release commit, core pin, archive digest, and formula
-validation in the release handoff.
+The chain ends by checking that the installed `agents --version` prints
+`agents $version`. Publish the tap change only after its candidate passes;
+remove the disposable environment afterward. Record the release commit, core
+pin, archive digest, and formula validation in the release handoff.
