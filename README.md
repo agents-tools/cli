@@ -5,7 +5,7 @@
 <h1 align="center">agents</h1>
 
 <p align="center">
-  Skills and instructions for every agent, from sources you declare.
+  A package manager for agent skills and instructions.
 </p>
 
 <p align="center">
