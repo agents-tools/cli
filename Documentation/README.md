@@ -6,6 +6,10 @@
   update previews, watch status and diffs, installation, and doctor.
 - [Release checklist](Reference/Release.md): prepare and verify release commits,
   publish signed tags, and validate the Homebrew formula.
+- [Assets](Assets/): the logo, rendered from the agents icon in
+  [agents-tools/.github](https://github.com/agents-tools/.github/blob/master/DESIGN.md),
+  and the README terminal demo with the transcript it is rendered from
+  (`Demo.txt`, real `agents` output).
 
 The package manifest owns target and dependency configuration. Shared lifecycle
 architecture is documented in

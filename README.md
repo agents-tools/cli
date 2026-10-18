@@ -1,9 +1,29 @@
-# agents
+<p align="center">
+  <img src="Documentation/Assets/Logo.png" width="160" alt="agents logo">
+</p>
+
+<h1 align="center">agents</h1>
+
+<p align="center">
+  Skills and instructions for every agent, from sources you declare.
+</p>
+
+<p align="center">
+  <a href="https://github.com/agents-tools/cli/actions/workflows/ci.yml"><img src="https://github.com/agents-tools/cli/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI"></a>
+  <img src="https://img.shields.io/badge/Swift-6.3%2B-F05138" alt="Swift 6.3+">
+  <img src="https://img.shields.io/badge/platforms-macOS%2013%2B-lightgrey" alt="Platforms: macOS 13+">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
+</p>
 
 `agents` manages agent skills and instructions from declared sources. Declare
 skills and instruction sections once, restore their exact locked content with
-`install`, and preview upstream changes before applying an update. It supports Codex, Claude Code, Cursor, Gemini CLI, and
-OpenCode through [agents-tools/core](https://github.com/agents-tools/core).
+`install`, and preview upstream changes before applying an update. It supports
+Codex, Claude Code, Cursor, Gemini CLI, and OpenCode through
+[agents-tools/core](https://github.com/agents-tools/core).
+
+<p align="center">
+  <img src="Documentation/Assets/Demo.svg" width="781" alt="Terminal session: agents adds the pdf skill and two instruction sections, watches their source, reports an upstream change, and applies it to AGENTS.md">
+</p>
 
 The executable owns commands and terminal presentation. Core owns source
 resolution, declarations, locks, discovery, installation, and recovery.
