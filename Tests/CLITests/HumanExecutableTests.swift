@@ -59,6 +59,78 @@ struct HumanExecutableTests {
     #expect(removed.hasSuffix("Removed commits from AGENTS.md.\n"))
   }
 
+  @Test func topLevelInstructionChangesWithUnchangedSkills() throws {
+    let fixture = try CLIFixture()
+    let skills = try CLIFixture()
+    try skills.skill("pdf")
+    try skills.commit()
+    let skillSource = skills.root.appendingPathComponent("pdf-skills")
+    try FileManager.default.moveItem(at: skills.source, to: skillSource)
+    try fixture.success(["skills", "add", skillSource.path, "pdf"])
+    try fixture.instruction("code-review", heading: "Code Review", body: "Review code.")
+    try fixture.instruction("commits", heading: "Commits", body: "Use clear messages.")
+    try fixture.commit()
+    try fixture.success([
+      "instructions", "add", fixture.source.path, "code-review", "commits",
+    ])
+    let before = try fixture.git(["rev-parse", "--short=7", "HEAD"]).stdout
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    try fixture.instruction("code-review", heading: "Code Review", body: "Review code and tests.")
+    try fixture.commit()
+    let after = try fixture.git(["rev-parse", "--short=7", "HEAD"]).stdout
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let preview = try fixture.success(["update"]).stdout
+    #expect(
+      preview.hasPrefix(
+        "~ changed  code-review (instructions)  local:\(fixture.source.path)  \(before) -> \(after)\n"
+          + "= repinned  commits (instructions)  local:\(fixture.source.path)  \(before) -> \(after)\n"
+          + "AGENTS.md (claude-code, codex)\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@"))
+    #expect(preview.contains("-Review code.\n+Review code and tests.\n"))
+    #expect(!preview.contains("pdf"))
+    #expect(!preview.contains("No skill changes.") && !preview.contains("No instruction changes."))
+    let notice = "Preview only. Run again with --apply to write these changes.\n"
+    #expect(preview.hasSuffix(notice))
+    let applied = try fixture.success(["update", "--apply"]).stdout
+    #expect(applied == String(preview.dropLast(notice.count)) + "Updated AGENTS.md.\n")
+  }
+
+  @Test func topLevelSkillChanges() throws {
+    let fixture = try CLIFixture()
+    try fixture.skill("pdf")
+    try fixture.commit()
+    try fixture.success(["skills", "add", fixture.source.path, "pdf"])
+    try fixture.skill("pdf", body: "Updated content")
+    try fixture.commit()
+    for arguments in [["update"], ["update", "--apply"]] {
+      let output = try fixture.success(arguments).stdout
+      #expect(output.hasPrefix("~ changed  pdf  "))
+      #expect(!output.contains("No skill changes.") && !output.contains("No instruction changes."))
+      if arguments.contains("--apply") {
+        #expect(output.hasSuffix("Updated pdf for claude-code, codex.\n"))
+      }
+    }
+  }
+
+  @Test(arguments: [
+    ["update"], ["update", "--apply"],
+    ["skills", "update"], ["skills", "update", "--apply"],
+    ["instructions", "update"], ["instructions", "update", "--apply"],
+  ])
+  func unchangedUpdatesReportCommandScope(_ arguments: [String]) throws {
+    let fixture = try CLIFixture()
+    try fixture.skill("pdf")
+    try fixture.instruction()
+    try fixture.commit()
+    try fixture.success(["skills", "add", fixture.source.path, "pdf"])
+    try fixture.success(["instructions", "add", fixture.source.path])
+    let output = try fixture.success(arguments).stdout
+    switch arguments[0] {
+    case "skills": #expect(output == "No skill changes.\n")
+    case "instructions": #expect(output == "No instruction changes.\n")
+    default: #expect(output == "No changes.\n")
+    }
+  }
+
   @Test func upstreamControlsAndEmptyFiles() throws {
     let fixture = try CLIFixture()
     try fixture.skill("pdf", body: "a\tb\r\nControl: \u{1b}[31m\0")

@@ -129,6 +129,10 @@ struct SkillOutputExecutableTests {
     try fixture.skill("pdf")
     try fixture.commit()
     try fixture.success(["skills", "add", fixture.source.path, "pdf"])
+    if command == "update" {
+      try fixture.skill("pdf", body: "Updated content")
+      try fixture.commit()
+    }
     let journal = fixture.state("transaction.new")
     try Data("partial journal".utf8).write(to: journal)
     let preview = try fixture.run(["skills", "update"])
