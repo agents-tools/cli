@@ -1,0 +1,13 @@
+# Documentation
+
+- [CLI reference](Reference/CLI.md): shipped commands, options, output, errors,
+  state locations, and JSON contracts.
+- [JSON schemas](Reference/Schemas/): machine-readable schemas for list,
+  update previews, and doctor.
+
+The package manifest owns target and dependency configuration. Shared lifecycle
+architecture is documented in
+[core](https://github.com/agents-tools/core/tree/master/Documentation/Architecture).
+Its [command proposal](https://github.com/agents-tools/core/blob/master/Documentation/Proposals/AgentInstructions.md)
+describes the broader command design; the CLI reference describes the implemented
+surface in this repository.
