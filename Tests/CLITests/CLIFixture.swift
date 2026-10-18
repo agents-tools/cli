@@ -66,9 +66,11 @@ final class CLIFixture {
     return result
   }
 
-  func git(_ arguments: [String]) throws {
+  @discardableResult
+  func git(_ arguments: [String]) throws -> CLIResult {
     let result = try process(URL(fileURLWithPath: "/usr/bin/git"), arguments, directory: source)
     try #require(result.status == 0, "git \(arguments): \(result.stderr)")
+    return result
   }
 
   func commit() throws {

@@ -30,6 +30,10 @@ agents instructions add /path/to/rules canonical-artifacts
 agents instructions list
 agents instructions update --apply
 agents instructions render chatgpt weekly | pbcopy
+agents watch add https://github.com/anthropics/skills.git
+agents watch
+agents watch diff https://github.com/anthropics/skills.git
+agents watch seen https://github.com/anthropics/skills.git
 agents install
 agents update
 agents update --apply
@@ -40,6 +44,10 @@ agents doctor --root /path/to/project-a /path/to/project-b --json
 
 Project scope is the default and uses the current directory. User scope is
 selected with `--scope user`. Commands never prompt for confirmation.
+
+`watch` subscribes to sources without installing content, reports upstream
+changes since the last `watch seen`, and previews file differences. Removing a
+subscription with `watch remove` keeps installed skills and instructions.
 
 Instructions are Markdown sections discovered in a source's `instructions/` or
 `.agents/instructions/` directory. Managed blocks preserve surrounding custom

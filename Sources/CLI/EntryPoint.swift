@@ -20,7 +20,9 @@ struct Agents: ParsableCommand {
         agents update               Preview what re-resolving would change
         agents update --apply       Write the updates and the new lock
       """,
-    subcommands: [Skills.self, InstructionsCommand.self, Install.self, Update.self, Doctor.self]
+    subcommands: [
+      Skills.self, InstructionsCommand.self, Watch.self, Install.self, Update.self, Doctor.self,
+    ]
   )
 
   @Flag(help: "Show the version.") var version = false
@@ -109,12 +111,18 @@ enum EntryPoint {
   // unknown-command tests in ExecutableTests on every parser upgrade, including patches.
   private static func takesValue(_ name: String, command: any ParsableCommand.Type) throws -> Bool {
     let help = try JSONDecoder().decode(CommandHelp.self, from: Data(command._dumpHelp().utf8))
-    return help.command.arguments.contains { argument in
+    if help.command.arguments.contains(where: { argument in
       argument.kind == "option"
         && argument.names?.contains {
           ($0.kind == "long" ? "--" : "-") + $0.name == name
         } == true
+    }) {
+      return true
     }
+    if let defaultCommand = command.configuration.defaultSubcommand {
+      return try takesValue(name, command: defaultCommand)
+    }
+    return false
   }
 }
 

@@ -18,13 +18,21 @@ agents instructions remove <names…>
 agents instructions update [--apply | --json]
 agents instructions render chatgpt <prompt>
 agents instructions init <name>
+agents watch
+agents watch add <source> [--path <dir>] [requirement options] [--scope project|user]
+agents watch status [--json] [--scope project|user]
+agents watch diff <source> [name] [--kind skill|instructions|artifact] [--json] [--scope project|user]
+agents watch seen <source> [--revision <rev>] [--scope project|user]
+agents watch remove <source> [--scope project|user]
 agents install [--json]
 agents update [--apply | --json]
 agents doctor [--root <dir>…] [--json]
 ```
 
-`agents --help`, `agents skills --help`, `agents instructions --help`, and each
-command's `--help` describe their options. Running a group without a subcommand prints help. `agents --version`
+`agents --help`, `agents skills --help`, `agents instructions --help`,
+`agents watch --help`, and each command's `--help` describe their options.
+Running a group without a subcommand prints help, except `agents watch`, which
+runs `watch status` and accepts its options. `agents --version`
 prints `agents X.Y.Z` and is available only on the root command; the version
 constant lives in `Sources/CLI/EntryPoint.swift`.
 
@@ -50,11 +58,11 @@ Examples:
 | `--agent <agent>` | Agent to install for: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: the agents already recorded for this skill or source, else the declaration's agents, else codex and claude-code. | `skills add` |
 | `--agent <agent>` | Limit to this agent: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: all recipients. | `skills list`, `skills remove`, `doctor` |
 | `--agent <agent>` | Set the scope's entire instruction section list recipients. Repeat for several. Default: recorded instruction agents, else declaration agents, else codex and claude-code. | `instructions add`, `instructions remove`, `instructions update` |
-| `--path <subdir>` | Search this subdirectory of the source. | Both kinds' `add` and `list <source>` |
+| `--path <subdir>` | Search this subdirectory of the source. | Both kinds' `add` and `list <source>`, `watch add` |
 | `--full-depth` | Discover recursively beyond conventional skill directories | `skills add`, `skills list <source>` |
 | `--mode link\|copy\|edit` | How to install: link (default), copy, or edit (a live link to a local source). | `skills add` |
 | `--root <dir>…` | Audit these project directories read-only. Repeat for several. | `doctor` |
-| `--json` | Emit a versioned JSON report on stdout | Both kinds' `list`, `install`, `doctor`, all update previews |
+| `--json` | Emit a versioned JSON report on stdout | Both kinds' `list`, `install`, `doctor`, all update previews, `watch status`, `watch diff` |
 
 Agents are `codex`, `claude-code`, `cursor`, `gemini-cli`, and `opencode`.
 For instruction recipients, Cursor supports project scope only. ChatGPT is a
@@ -175,6 +183,71 @@ re-paste them; removed prompts must be cleared in ChatGPT. Core detects changes
 to section bytes, membership, order, or append path. Edits to the append file's
 contents are read at render time and are not tracked as prompt changes.
 
+## Watch
+
+`watch add <source>` subscribes without installing content and records the
+current baseline as seen. Repeating add acknowledges current content again.
+Sources can be declared aliases, source locations, or existing source IDs.
+`--path` and requirement options use the same forms as `skills add`. A local
+source must be a Git repository. Git subscriptions follow the declared branch,
+or the default branch; version and revision requirements do not select the
+watched head. Well-known subscriptions follow the index.
+
+`watch status`, also available as `agents watch`, reports subscriptions in
+core's order. Git revisions are abbreviated to seven characters:
+
+```text
+github.com/anthropics/skills  3 commits since a1b2c3d (now 9f8e7d6)
+  + new      pdf-forms
+  ~ changed  frontend-design   4 files
+  - removed  legacy-docx
+local:/Users/me/Developer/rules  up to date
+```
+
+The Git count is commits reachable from the current head but not the seen
+revision. A well-known source shows `N artifacts changed` (singular for one),
+or `up to date`. Instruction and artifact names carry `(instructions)` or
+`(artifact)`; skills have no suffix. Changed items show `1 file` or `N files`;
+new and removed items omit the file count. An empty scope prints
+`No watched sources.`
+
+`watch diff <source> [name]` prints each changed item's heading, such as
+`~ changed  frontend-design (skill)`, followed by full before/after snapshots
+using update preview rendering. All headings include the kind. File paths are
+relative to the item; snapshots retain executable mode (`[executable]` or
+`[non-executable]`), text, base64 binary bytes, symbolic-link destinations,
+directories, and absent entries. `--kind skill|instructions|artifact` filters
+changes and disambiguates shared names. With no matching changes, diff prints
+`up to date`.
+
+`watch seen <source>` acknowledges current content. `--revision <rev>` resolves
+a Git revision to its full commit ID and can select an older commit. Well-known
+sources do not accept `--revision`. `watch remove <source>` removes the
+subscription and baseline while preserving declarations, locks, and installed
+content. Diff, seen, and remove accept a subscribed alias, source ID, or location.
+
+Mutation confirmations use normalized source IDs:
+
+```text
+Watching github.com/anthropics/skills from a1b2c3d.
+Marked github.com/anthropics/skills seen at 9f8e7d6.
+Stopped watching github.com/anthropics/skills; installations are unchanged.
+```
+
+Well-known confirmations omit revisions: `Watching <source ID>.` and
+`Marked <source ID> seen.` Add, seen, and remove do not accept `--json`.
+Status and diff emit one JSON object each with `--json`; revisions remain full.
+They can fetch upstream content without changing declarations, locks, watch
+baselines, installations, or source working trees. Uncommitted source files are
+ignored. Scheduling checks is left to the caller.
+
+Watch baselines live in `.agent/agents.watch` for project scope or
+`~/.agents/agents.watch` for user scope. `agents.json` owns subscriptions.
+A missing subscription suggests `run 'agents watch' to list subscriptions`;
+an invalid revision suggests providing a Git revision that resolves to a commit
+in the watched source. Operation failures exit 1; invalid options and unknown
+subcommands exit 64, as elsewhere in the CLI.
+
 ## Update, Restore, Remove, and Initialize
 
 All update commands preview by default, comparing newly resolved declarations
@@ -289,7 +362,9 @@ Optional properties are omitted when unavailable. Instruction target
 Filesystem paths, including update file `path` fields, are absolute except
 instruction section `path` (source-relative), `target` keys (project-relative,
 `~`-relative for user targets under HOME, otherwise absolute), and prompt
-`append` paths (scope-root-relative). File bytes use standard base64. Missing
+`append` paths (scope-root-relative). Watch item `oldPath` and `newPath` are
+relative to the source search root (`--path` when present); watch diff file
+`path` is item-relative. File bytes use standard base64. Missing
 `before` or `after` means that entry is absent, distinct from an empty file or
 directory.
 Clients should ignore unknown properties; incompatible changes require a new
@@ -303,6 +378,8 @@ schema version. Diagnostic IDs are core-defined strings, not a closed enum.
 | `instructions list --json` | [Managed instructions](Schemas/instructions-installed-list.schema.json) | `schemaVersion`, `kind: "installed"`, `scope`, `sections`, `targets`, `prompts` |
 | `instructions list <source> --json` | [Instruction source](Schemas/instructions-source-list.schema.json) | `schemaVersion`, `kind: "source"`, `scope`, `source`, `sections` |
 | `instructions update --json` | [Instruction update](Schemas/instructions-update.schema.json) | `schemaVersion`, `scope`, `changed`, `instructions` |
+| `watch status --json`, `watch --json` | [Watch status](Schemas/watch-status.schema.json) | `schemaVersion`, `scope`, `sources` |
+| `watch diff --json` | [Watch diff](Schemas/watch-diff.schema.json) | `schemaVersion`, `scope`, `source` |
 | `install --json` | [Install](Schemas/install.schema.json) | `schemaVersion`, `scope`, `skills`, `instructions` |
 | `doctor --json` | [Doctor](Schemas/doctor.schema.json) | `schemaVersion`, `ok`, `roots` |
 
@@ -351,3 +428,15 @@ shape as skill files. `install --json` reports restored skill rows and
 instruction restoration differences; instruction `sections` and
 `changedPrompts` are empty because install never resolves new content.
 The definitions are CLI-owned and do not expose core's encoded lock objects.
+
+Watch `sources` entries (and the single diff `source` object) include `alias`,
+normalized `source`, `seen`, `current`, optional Git `commitCount`, and `changes`.
+Each baseline is either `{ "revision": "<full commit ID>" }` or
+`{ "artifacts": { "<name>": "sha256:…" } }`. Changes include `name`,
+`kind: "skill" | "instructions" | "artifact"`,
+`change: "new" | "changed" | "removed"`, `fileCount`, and available
+`oldPath`, `newPath`, `oldDigest`, and `newDigest`. Diff adds `files` with
+`path` and optional `before`/`after` snapshots; regular files include
+`kind: "file"`, `base64`, and boolean `executable`. Directory and symlink
+entries use the same shapes as update previews. Status omits file snapshots.
+Artifact digests may change with zero file differences; `fileCount` remains zero.

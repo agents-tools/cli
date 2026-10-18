@@ -26,10 +26,6 @@ struct InstructionAgentOptions: ParsableArguments {
   }
 }
 
-struct InstructionPathOptions: ParsableArguments {
-  @Option(help: "Search this subdirectory of the source.") var path: String?
-}
-
 struct AddInstructions: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "add", abstract: "Declare and install instruction sections from a source.")
@@ -42,7 +38,7 @@ struct AddInstructions: ParsableCommand {
   var names: [String] = []
   @OptionGroup var location: ScopeOptions
   @OptionGroup var agents: InstructionAgentOptions
-  @OptionGroup var discovery: InstructionPathOptions
+  @OptionGroup var discovery: SourcePathOptions
   @OptionGroup var requirements: RequirementOptions
   @Flag(help: "Show differences, then replace conflicting custom sections.") var replace = false
 
@@ -70,7 +66,7 @@ struct ListInstructions: ParsableCommand {
 
   @Argument(help: "Inspect this source instead of managed instructions.") var source: String?
   @OptionGroup var location: ScopeOptions
-  @OptionGroup var discovery: InstructionPathOptions
+  @OptionGroup var discovery: SourcePathOptions
   @Flag(help: "Print the versioned JSON report.") var json = false
 
   func validate() throws {
