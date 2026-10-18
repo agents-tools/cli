@@ -274,6 +274,11 @@ including membership changes in `all` selections. `instructions update` resolves
 all declared sections and ChatGPT prompts. Top-level `update` handles skills,
 then instructions.
 
+Human output for top-level `update` and `update --apply` includes only changed
+items. When neither kind has changes, they print `No changes.` once. The
+kind-specific commands keep `No skill changes.` and `No instruction changes.`
+for unchanged runs.
+
 Human update item lines use `+ new`, `~ changed`, `= repinned`, and `- removed`.
 Repinned means only the pin moved and content is identical. Items sort in that
 order, then by name, with skills before instructions for the same name.
@@ -345,9 +350,11 @@ changes with identical file bytes. Each side lists sorted agent IDs; `none`
 means no recipients or no previous lock entry.
 
 `--apply` prints the preview before each core operation writes, followed by
-`Updated <skill> for <recipients>.` for skills and `Updated <path>.` for
-instruction targets. Removed skill recipients get
-`Removed <skill> for <recipients>.` Skill completions print as soon as the skill
+`Updated <skill> for <recipients>.` for changed skills and `Updated <path>.` for
+changed instruction targets. Removed skill recipients get
+`Removed <skill> for <recipients>.` Skill update and removal completions print
+only for changed results; unchanged skills print no completion. This also
+applies to `skills update --apply`. Skill completions print as soon as the skill
 operation succeeds, before instruction processing. There is no generic success
 banner.
 A preview can become stale; `--apply` resolves again and displays the content

@@ -227,7 +227,6 @@ enum Terminal {
   ) {
     let items = HumanItem.ordered(skillItems(skills) + instructionItems(instructions))
     for item in items { write(item.render(paths: paths)) }
-    if !skills.contains(where: \.changed) { write("No skill changes.\n") }
     for item in items where !item.instructions {
       if let result = skills.first(where: {
         $0.skill == item.name && $0.sourceIdentity == item.source
@@ -235,7 +234,6 @@ enum Terminal {
         skillFileDifferences(result, previous: previous, paths: paths)
       }
     }
-    if !instructions.hasChanges { write("No instruction changes.\n") }
     instructionTargets(instructions.targets, paths: paths)
     for prompt in instructions.changedPrompts { write("Changed ChatGPT prompt \(line(prompt)).\n") }
   }

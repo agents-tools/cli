@@ -52,7 +52,7 @@ struct UpdateOptions: ParsableArguments {
     if json && apply { throw ValidationError("--json is for previews; remove --apply or --json") }
   }
 
-  func updateSkills(names: [String] = []) throws -> (
+  func updateSkills(names: [String] = [], reportUnchanged: Bool = true) throws -> (
     results: [UpdateResult], previous: SkillOutputInventory
   ) {
     try withRecovery {
@@ -60,7 +60,11 @@ struct UpdateOptions: ParsableArguments {
         json ? SkillOutputInventory() : SkillOutputInventory.read(scope: location.scope)
       let results = try SkillOperations.updateInstalled(
         scope: location.scope, skillNames: names, apply: apply,
-        beforeApply: { Terminal.differences($0, previous: previous, paths: location.paths) })
+        beforeApply: { results in
+          if reportUnchanged || results.contains(where: \.changed) {
+            Terminal.differences(results, previous: previous, paths: location.paths)
+          }
+        })
       return (results, previous)
     }
   }
@@ -73,11 +77,17 @@ struct UpdateOptions: ParsableArguments {
     }
   }
 
-  func updateInstructions(agents: [AgentID]? = nil) throws -> InstructionUpdateReport {
+  func updateInstructions(agents: [AgentID]? = nil, reportUnchanged: Bool = true) throws
+    -> InstructionUpdateReport
+  {
     try withRecovery {
       try InstructionOperations.updateInstalled(
         scope: location.scope, agents: agents, apply: apply,
-        beforeApply: { Terminal.instructionDifferences($0, paths: location.paths) })
+        beforeApply: { result in
+          if reportUnchanged || result.hasChanges {
+            Terminal.instructionDifferences(result, paths: location.paths)
+          }
+        })
     }
   }
 
@@ -104,22 +114,24 @@ struct Update: ParsableCommand {
   @OptionGroup var options: UpdateOptions
 
   func run() throws {
-    let skills = try options.updateSkills()
+    let skills = try options.updateSkills(reportUnchanged: false)
     if options.apply { options.finishSkills(skills.results, previous: skills.previous) }
-    let instructions = try options.updateInstructions()
+    let instructions = try options.updateInstructions(reportUnchanged: false)
+    let changed = skills.results.contains(where: \.changed) || instructions.hasChanges
     if options.json {
       try Terminal.json(
         UpdateReport(
           scope: options.location.scope.rawValue, results: skills.results,
           instructions: InstructionChanges(instructions)))
+    } else if !changed {
+      Terminal.write("No changes.\n")
     } else if options.apply {
       options.finishInstructions(instructions)
     } else {
       Terminal.updateDifferences(
         skills: skills.results, previous: skills.previous, instructions: instructions,
         paths: options.location.paths)
-      options.previewNotice(
-        changed: skills.results.contains(where: \.changed) || instructions.hasChanges)
+      options.previewNotice(changed: changed)
     }
   }
 }
