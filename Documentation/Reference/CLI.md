@@ -198,11 +198,9 @@ watched head. Well-known subscriptions follow the index.
 core's order. Git revisions are abbreviated to seven characters:
 
 ```text
-github.com/anthropics/skills  3 commits since a1b2c3d (now 9f8e7d6)
-  + new      pdf-forms
-  ~ changed  frontend-design   4 files
-  - removed  legacy-docx
-local:~/Developer/rules  up to date
+local:~/Developer/team-rules  1 commit since 6c09c94 (now 9661957)
+  ~ changed  code-review (instructions)   1 file
+  ~ changed  pdf   1 file
 ```
 
 The Git count is commits reachable from the current head but not the seen
@@ -220,14 +218,18 @@ artifact paths are relative to the item.
 names. With no matching changes, diff prints `up to date`.
 
 ```text
-~ changed  code-review (instructions)  local:~/Developer/team-rules  abc1234 -> def5678
+~ changed  code-review (instructions)  local:~/Developer/team-rules  6c09c94 -> 9661957
 --- a/code-review.md
 +++ b/code-review.md
-@@ -1,3 +1,3 @@
- # Code Review
+@@ -2,7 +2,7 @@
  Review checklist:
+ Read the change.
+ Check correctness.
 -Review the code.
 +Review the code and tests.
+ Check tests.
+ Check edge cases.
+ Record findings.
 ```
 
 Mode changes print `mode pdf/run.sh: 644 -> 755`; unchanged modes are omitted.
@@ -244,9 +246,9 @@ content. Diff, seen, and remove accept a subscribed alias, source ID, or locatio
 Mutation confirmations use normalized source IDs:
 
 ```text
-Watching github.com/anthropics/skills from a1b2c3d.
-Marked github.com/anthropics/skills seen at 9f8e7d6.
-Stopped watching github.com/anthropics/skills; installations are unchanged.
+Watching local:~/Developer/team-rules from 6c09c94.
+Marked local:~/Developer/team-rules seen at 9661957.
+Stopped watching local:~/Developer/team-rules; installations are unchanged.
 ```
 
 Well-known confirmations omit revisions: `Watching <source ID>.` and
@@ -283,16 +285,20 @@ revisions. Item summaries omit hashes. Live edit records show `none` for pins;
 a pinless result with no file differences is reported as changed.
 
 ```text
-~ changed  code-review (instructions)  local:~/Developer/team-rules  abc1234 -> def5678
-= repinned  commits (instructions)  local:~/Developer/team-rules  abc1234 -> def5678
+~ changed  code-review (instructions)  local:~/Developer/team-rules  6c09c94 -> 9661957
+= repinned  commits (instructions)  local:~/Developer/team-rules  6c09c94 -> 9661957
 AGENTS.md (claude-code, codex)
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -4,3 +4,3 @@
- # Code Review
+@@ -3,7 +3,7 @@
  Review checklist:
+ Read the change.
+ Check correctness.
 -Review the code.
 +Review the code and tests.
+ Check tests.
+ Check edge cases.
+ Record findings.
 Preview only. Run again with --apply to write these changes.
 ```
 
@@ -305,9 +311,10 @@ File comparisons use unified line diffs with three lines of context and
 `--- a/<path>`, `+++ b/<path>`, and `@@` hunk headers. New files use
 `--- /dev/null`; removed files use `+++ /dev/null`. Missing trailing newlines
 are marked with `\ No newline at end of file`. Empty file creation or removal
-prints only `empty file <path> added` or `empty file <path> removed`. Binary, mode, link, and directory changes use
-the same rendering as watch diffs. Watch diffs include executable-mode changes;
-skill update diffs compare content bytes, links, and directories.
+prints only `empty file <path> added` or `empty file <path> removed`. Binary, mode,
+link, and directory changes use the same rendering as watch diffs. Watch diffs
+include executable-mode changes; skill update diffs compare content bytes,
+links, and directories.
 
 Skill content differences appear once per skill, using paths relative to its
 root prefixed by its name. Identical changes across installations are combined.
@@ -317,14 +324,19 @@ Links to live edit targets and changes between link, copy, and edit modes remain
 visible, as do symbolic links within the skill content.
 
 ```text
-~ changed  pdf  local:~/Developer/team-rules  abc1234 -> def5678
+~ changed  pdf  local:~/Developer/team-rules  6c09c94 -> 9661957
 --- a/pdf/SKILL.md
 +++ b/pdf/SKILL.md
-@@ -6,3 +6,3 @@
- # PDF
- Usage:
+@@ -6,7 +6,7 @@
+ PDF checklist:
+ Open the document.
+ Inspect page sizes.
 -Inspect PDF pages.
 +Inspect PDF pages and metadata.
+ Check metadata.
+ Check annotations.
+ Review extracted text.
+Preview only. Run again with --apply to write these changes.
 ```
 
 Instruction targets print `<path> (<recipients>)` before their diff. Recipient
@@ -341,15 +353,15 @@ banner.
 A preview can become stale; `--apply` resolves again and displays the content
 it will actually write. `--json --apply` is a usage error.
 
-Add and remove confirmations name their content and destinations:
+Completion lines name their content and destinations:
 
 ```text
 Installed pdf for claude-code, codex (link).
 Added code-review, commits to AGENTS.md (claude-code, codex).
-Removed commits from AGENTS.md.
 Updated pdf for claude-code, codex.
-Removed pdf for claude-code, codex.
 Updated AGENTS.md.
+Removed commits from AGENTS.md.
+Removed pdf for claude-code, codex.
 ```
 
 Normal instruction adds print only the completion lines. Replacing conflicting
