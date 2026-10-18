@@ -453,6 +453,20 @@ Error: Unknown option '--all'. Did you mean '--path'?
   Run 'agents --help' for usage.
 ```
 
+Git failures name the operation and source, followed by Git's diagnostics and
+a remedy. For a source alias `missing` declared in `.agent/agents.json` as
+`{"git": "file://localhost/missing/skills.git"}`, a failed add reports:
+
+```text
+$ agents skills add missing demo
+Error: Git could not clone file://localhost/missing/skills.git.
+  fatal: '/missing/skills.git' does not appear to be a git repository
+  fatal: Could not read from remote repository.
+  Please make sure you have the correct access rights
+  and the repository exists.
+  Check Git access and the source location.
+```
+
 A declared ChatGPT prompt without locked sections retains the diagnostic
 `A ChatGPT prompt must have at least one locked section.`
 Human-readable source text preserves tabs and visibly escapes other control
