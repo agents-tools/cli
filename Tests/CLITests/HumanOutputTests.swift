@@ -144,18 +144,52 @@ struct HumanOutputTests {
     #expect(HumanItem.pin(revision: nil) == "none")
   }
 
-  @Test func errorSentencesKeepTrailingControls() {
-    let joined = Terminal.joiningError("Problem\r\n\t", remedy: "try again")
-    #expect(joined == "Problem\r\n\t. Try again.")
-    #expect(Terminal.line(joined) == "Problem\\r\\n\t. Try again.")
+  @Test func multilineErrorsIndentEveryContinuation() {
+    let error = CoreError.commandFailed(
+      "git fetch origin\nfatal: Could not read from remote repository.\n\nError: remote text\n\n")
+    #expect(
+      Terminal.formatError(
+        String(describing: error), remedy: Terminal.failureRemedy(error, command: Add()))
+        == "Error: Command failed: git fetch origin\n  fatal: Could not read from remote repository.\n  \n  Error: remote text.\n  Check Git access and the source location.\n"
+    )
+  }
+
+  @Test func errorLinesEscapeControlsAndPreserveTabs() {
+    let message = "git\tfetch\u{1b}[31m\r failed\nError: remote\u{9b}31m\u{202e}text\n"
+    let output = Terminal.formatError(message, remedy: "try again")
+    #expect(
+      output
+        == "Error: git\tfetch\\x1b[31m\\r failed\n  Error: remote\\x9b31m\\u{202e}text.\n  Try again.\n"
+    )
+    #expect(
+      !output.unicodeScalars.contains {
+        $0 != "\n" && $0 != "\t" && CharacterSet.controlCharacters.contains($0)
+      })
+  }
+
+  @Test(arguments: ["", "\n", "\n\n", "\n \t\n"])
+  func errorsDropTrailingBlankLines(_ suffix: String) {
+    #expect(
+      Terminal.formatError("Command failed\nfatal: no access" + suffix, remedy: "try again")
+        == "Error: Command failed\n  fatal: no access.\n  Try again.\n")
+    #expect(
+      Terminal.formatError("Command failed\nfatal: no access." + suffix, remedy: "try again")
+        == "Error: Command failed\n  fatal: no access.\n  Try again.\n")
+  }
+
+  @Test(arguments: ["failure", "failure."])
+  func crlfErrorsPunctuateBeforeLineEndings(_ detail: String) {
+    #expect(
+      Terminal.formatError("Command failed\r\nfatal: \(detail)\r\n\r\n", remedy: "try again")
+        == "Error: Command failed\\r\n  fatal: failure.\\r\n  Try again.\n")
   }
 
   @Test(arguments: ["Problem", "Problem.", "Problem?", "Problem!", "Problem。"])
   func errorsKeepPunctuation(_ message: String) {
-    let result = Terminal.joiningError(message, remedy: "try again")
+    let result = Terminal.formatError(message, remedy: "try again")
     let expected = message == "Problem" ? "Problem." : message
-    #expect(result == expected + " Try again.")
+    #expect(result == "Error: " + expected + "\n  Try again.\n")
     #expect(!result.contains(".;") && !result.contains("?;"))
-    #expect(Terminal.joiningError(message, remedy: "Try again.") == result)
+    #expect(Terminal.formatError(message, remedy: "Try again.") == result)
   }
 }

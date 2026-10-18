@@ -125,7 +125,7 @@ struct InstructionExecutableTests {
     #expect(
       conflict.stderr.contains("Conflicting custom content")
         && conflict.stderr.hasSuffix(
-          ". Inspect the differences and rerun with --replace to replace the conflicting custom sections.\n"
+          "\n  Inspect the differences and rerun with --replace to replace the conflicting custom sections.\n"
         ))
     #expect(try String(contentsOf: target, encoding: .utf8) == custom)
     #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.resolved").path))
@@ -159,7 +159,7 @@ struct InstructionExecutableTests {
     #expect(
       conflict.stderr.contains("Conflicting custom content")
         && conflict.stderr.hasSuffix(
-          ". Edit or remove the conflicting custom sections in the target file, or rerun 'agents instructions add' with --replace, then retry.\n"
+          "\n  Edit or remove the conflicting custom sections in the target file, or rerun 'agents instructions add' with --replace, then retry.\n"
         ))
     let invalid = try fixture.run(arguments + ["--replace"])
     #expect(invalid.status == 64 && invalid.stderr.contains("Unknown option '--replace'"))
@@ -376,7 +376,10 @@ struct InstructionExecutableTests {
       })
     let failed = try fixture.run(["install", "--json"])
     #expect(failed.status == 1 && failed.stdout.isEmpty)
-    #expect(failed.stderr.split(separator: "\n").count == 1)
+    #expect(failed.stderr.split(separator: "\n").dropFirst().allSatisfy { $0.hasPrefix("  ") })
+    #expect(
+      failed.stderr.hasSuffix(
+        "\n  Check the instruction source and target Markdown with 'agents doctor'.\n"))
   }
 
   @Test func emptyScopeReports() throws {
@@ -453,7 +456,8 @@ struct InstructionExecutableTests {
     let fixture = try CLIFixture()
     let result = try fixture.run(arguments)
     #expect(result.status == 64 && result.stdout.isEmpty)
-    #expect(result.stderr.split(separator: "\n").count == 1)
+    #expect(result.stderr.split(separator: "\n").dropFirst().allSatisfy { $0.hasPrefix("  ") })
+    #expect(result.stderr.hasSuffix("\n  Run 'agents --help' for usage.\n"))
   }
 }
 

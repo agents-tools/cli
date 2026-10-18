@@ -24,7 +24,32 @@ enum Terminal {
     FileHandle.standardError.write(Data("\(line(text))\n".utf8))
   }
 
-  static func error(_ text: String) { notice("Error: \(text)") }
+  static func error(_ message: String, remedy: String) {
+    FileHandle.standardError.write(Data(formatError(message, remedy: remedy).utf8))
+  }
+
+  static func formatError(_ message: String, remedy: String) -> String {
+    func punctuate(_ text: String) -> String {
+      var text = text
+      if let last = text.lastIndex(where: { !" \t\r".contains($0) }),
+        !".!?。！？".contains(text[last])
+      {
+        text.insert(".", at: text.index(after: last))
+      }
+      return text
+    }
+    var lines = message.components(separatedBy: "\n")
+    while let last = lines.last, last.allSatisfy({ " \t\r".contains($0) }) {
+      lines.removeLast()
+    }
+    if !lines.isEmpty { lines[lines.count - 1] = punctuate(lines[lines.count - 1]) }
+    let error = lines.enumerated().map { index, text in
+      (index == 0 ? "Error: " : "  ") + line(text)
+    }.joined(separator: "\n")
+    var remedy = remedy.trimmingCharacters(in: CharacterSet(charactersIn: " \t\n"))
+    if let first = remedy.first { remedy = first.uppercased() + remedy.dropFirst() }
+    return (error.isEmpty ? "Error:" : error) + "\n  " + line(punctuate(remedy)) + "\n"
+  }
 
   static func line(_ text: String) -> String {
     text.unicodeScalars.map { scalar in
@@ -46,7 +71,7 @@ enum Terminal {
     text.components(separatedBy: "\n").map(line).joined(separator: "\n")
   }
 
-  static func failureMessage(_ error: Error, command: any ParsableCommand) -> String {
+  static func failureRemedy(_ error: Error, command: any ParsableCommand) -> String {
     let action: String
     switch error {
     case CoreError.transactionRecovered:
@@ -93,7 +118,7 @@ enum Terminal {
     default:
       action = "check the command arguments and filesystem permissions"
     }
-    return joiningError(String(describing: error), remedy: action)
+    return action
   }
 
   static func json(_ value: some Encodable) throws {
@@ -108,18 +133,6 @@ enum Terminal {
     for skill in skills.sorted(by: { $0.name < $1.name }) {
       write("\(line(skill.name))  \(line(skill.description))\n")
     }
-  }
-
-  static func joiningError(_ message: String, remedy: String) -> String {
-    func sentence(_ text: String, capitalize: Bool) -> String {
-      var text = text.trimmingCharacters(in: CharacterSet(charactersIn: " "))
-      if capitalize, let first = text.first {
-        text = first.uppercased() + text.dropFirst()
-      }
-      if let last = text.last, !".!?。！？".contains(last) { text += "." }
-      return text
-    }
-    return sentence(message, capitalize: false) + " " + sentence(remedy, capitalize: true)
   }
 
   static func installed(_ results: [InstallResult]) {

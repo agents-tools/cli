@@ -79,9 +79,7 @@ struct RequirementOptions: ParsableArguments {
         _ = try JSONDecoder().decode(
           SourceRequirement.self, from: JSONEncoder().encode(requirement))
       } catch {
-        throw ValidationError(
-          Terminal.joiningError(
-            String(describing: error), remedy: "Provide a valid source requirement"))
+        throw ValidationError("\(error)\nProvide a valid source requirement.")
       }
     }
   }

@@ -60,7 +60,7 @@ enum EntryPoint {
         return
       }
       Terminal.error(
-        Terminal.joiningError(Agents.message(for: error), remedy: "Run 'agents --help' for usage."))
+        Agents.message(for: error), remedy: "Run 'agents --help' for usage.")
       Darwin.exit(64)
     }
     do {
@@ -74,7 +74,8 @@ enum EntryPoint {
       if let code = error as? ExitCode {
         Darwin.exit(code.rawValue)
       }
-      Terminal.error(Terminal.failureMessage(error, command: command))
+      Terminal.error(
+        String(describing: error), remedy: Terminal.failureRemedy(error, command: command))
       Darwin.exit(1)
     }
   }

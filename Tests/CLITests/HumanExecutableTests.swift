@@ -4,6 +4,24 @@ import Testing
 @testable import CLI
 
 struct HumanExecutableTests {
+  @Test func multilineGitFailureKeepsDiagnosticStructure() throws {
+    let fixture = try CLIFixture()
+    try fixture.skill()
+    try fixture.commit()
+    try fixture.success(["skills", "add", fixture.source.path, "demo"])
+    try FileManager.default.removeItem(at: fixture.source.appendingPathComponent(".git"))
+    let failure = try fixture.run(["skills", "update"])
+    #expect(failure.status == 1 && failure.stdout.isEmpty)
+    #expect(failure.stderr.hasPrefix("Error: Command failed: /usr/bin/env git "))
+    #expect(failure.stderr.contains("\n  fatal: Could not read from remote repository.\n  \n"))
+    #expect(
+      failure.stderr.hasSuffix(
+        "  and the repository exists.\n  Check Git access and the source location.\n"))
+    let lines = failure.stderr.split(separator: "\n", omittingEmptySubsequences: false)
+    #expect(lines.dropFirst().dropLast().allSatisfy { $0.hasPrefix("  ") })
+    #expect(!failure.stderr.contains("\\n") && !failure.stderr.contains("\n  ."))
+  }
+
   @Test func completionsAndRepinnedSections() throws {
     let fixture = try CLIFixture()
     try fixture.skill("pdf")
@@ -77,7 +95,7 @@ struct HumanExecutableTests {
     #expect(error.stderr.contains("\\x1b[31m") && !error.stderr.contains("\u{1b}"))
     let missing = try fixture.run(["instructions", "add", fixture.source.path, "missing\r\n\t"])
     #expect(missing.status == 1)
-    #expect(missing.stderr.contains("missing\\r\\n\t."))
+    #expect(missing.stderr.contains("missing.\\r\n  Check"))
   }
 
   @Test func editRecipientChangeAndClaudeForwarding() throws {
@@ -108,7 +126,7 @@ struct HumanExecutableTests {
     #expect(missing.status == 1 && missing.stdout.isEmpty)
     #expect(
       missing.stderr
-        == "Error: No ChatGPT prompt named 'daily' is declared. Declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'.\n"
+        == "Error: No ChatGPT prompt named 'daily' is declared.\n  Declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'.\n"
     )
     #expect(!FileManager.default.fileExists(atPath: fixture.state("").path))
     try fixture.instruction()
@@ -117,14 +135,15 @@ struct HumanExecutableTests {
     #expect(invalid.status == 64 && invalid.stdout.isEmpty)
     #expect(
       invalid.stderr
-        == "Error: Unknown option '--all'. Did you mean '--path'? Run 'agents --help' for usage.\n")
+        == "Error: Unknown option '--all'. Did you mean '--path'?\n  Run 'agents --help' for usage.\n"
+    )
     try fixture.success(["instructions", "add", fixture.source.path])
     try fixture.declarePrompt()
     let unlocked = try fixture.run(["instructions", "render", "chatgpt", "weekly"])
     #expect(unlocked.status == 1)
     #expect(
       unlocked.stderr
-        == "Error: A ChatGPT prompt must have at least one locked section. Declare the ChatGPT prompt in agents.json and run 'agents instructions update --apply'.\n"
+        == "Error: A ChatGPT prompt must have at least one locked section.\n  Declare the ChatGPT prompt in agents.json and run 'agents instructions update --apply'.\n"
     )
     let journal = fixture.state("transaction.new")
     try Data("pending".utf8).write(to: journal)

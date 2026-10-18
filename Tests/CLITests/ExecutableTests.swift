@@ -482,8 +482,8 @@ struct ExecutableTests {
     let result = try fixture.run(arguments)
     #expect(result.status == 64)
     #expect(result.stdout.isEmpty && result.stderr.hasPrefix("Error:"))
-    #expect(result.stderr.split(separator: "\n").count == 1)
-    #expect(result.stderr.contains("agents --help"))
+    #expect(result.stderr.split(separator: "\n").dropFirst().allSatisfy { $0.hasPrefix("  ") })
+    #expect(result.stderr.hasSuffix("\n  Run 'agents --help' for usage.\n"))
     if arguments.contains("unknown") {
       #expect(result.stderr.contains("Unknown command 'unknown'"))
     } else if arguments.contains("-") {
@@ -503,7 +503,7 @@ struct ExecutableTests {
       ])
     let result = try fixture.run(["skills", "remove", "missing\nname"])
     #expect(result.status == 1 && result.stdout.isEmpty)
-    #expect(result.stderr.split(separator: "\n").count == 1)
-    #expect(result.stderr.contains("Check the source"))
+    #expect(result.stderr.split(separator: "\n").dropFirst().allSatisfy { $0.hasPrefix("  ") })
+    #expect(result.stderr.hasSuffix("\n  Check the source, names, and paths.\n"))
   }
 }

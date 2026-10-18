@@ -223,8 +223,10 @@ struct WatchExecutableTests {
     for revision in ["missing-revision", "--all"] {
       let result = try fixture.run(["watch", "seen", "source", "--revision=\(revision)"])
       #expect(result.status == 1 && result.stdout.isEmpty)
-      #expect(result.stderr.split(separator: "\n").count == 1)
-      #expect(result.stderr.contains("Provide a Git revision that resolves to a commit"))
+      #expect(result.stderr.split(separator: "\n").dropFirst().allSatisfy { $0.hasPrefix("  ") })
+      #expect(
+        result.stderr.hasSuffix(
+          "\n  Provide a Git revision that resolves to a commit in the watched source.\n"))
       #expect(try Data(contentsOf: fixture.state("agents.watch")) == baseline)
     }
   }
@@ -262,7 +264,8 @@ struct WatchExecutableTests {
   func usageErrors(_ arguments: [String]) throws {
     let result = try CLIFixture().run(arguments)
     #expect(result.status == 64 && result.stdout.isEmpty)
-    #expect(result.stderr.split(separator: "\n").count == 1)
+    #expect(result.stderr.split(separator: "\n").dropFirst().allSatisfy { $0.hasPrefix("  ") })
+    #expect(result.stderr.hasSuffix("\n  Run 'agents --help' for usage.\n"))
     if arguments.contains("unknown") {
       #expect(result.stderr.contains("Unknown command 'unknown'"))
     }

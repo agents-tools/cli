@@ -431,12 +431,19 @@ stderr. Human paths are project-relative inside the project in project scope,
 for example `local:~/Developer/team-rules`. Installed skill listings use the
 same path rules. JSON retains full revisions, hashes, and absolute paths.
 
-Errors are one line with a punctuated cause, followed by a capitalized remedy
-sentence:
+Errors preserve line breaks. The first line starts with `Error: `; every
+continuation line is indented by two spaces, including Git stderr and remote
+text that itself begins with `Error:`. Trailing blank lines are dropped.
+Punctuation is added only when the error's last non-empty line lacks it.
+The capitalized remedy is its own final sentence on a separate line, indented
+by two spaces. Tabs print verbatim; all other controls within each line,
+including ESC, CR, C1, and bidi controls, use visible escapes:
 
 ```text
-Error: No ChatGPT prompt named 'daily' is declared. Declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'.
-Error: Unknown option '--all'. Did you mean '--path'? Run 'agents --help' for usage.
+Error: No ChatGPT prompt named 'daily' is declared.
+  Declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'.
+Error: Unknown option '--all'. Did you mean '--path'?
+  Run 'agents --help' for usage.
 ```
 
 A declared ChatGPT prompt without locked sections retains the diagnostic
