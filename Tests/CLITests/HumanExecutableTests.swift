@@ -4,6 +4,22 @@ import Testing
 @testable import CLI
 
 struct HumanExecutableTests {
+  @Test func missingGitSourceHasConciseFailureAndRemedy() throws {
+    let fixture = try CLIFixture()
+    let source = "file://localhost" + fixture.home.appendingPathComponent("missing.git").path
+    try FileManager.default.createDirectory(
+      at: fixture.state("agents.json").deletingLastPathComponent(),
+      withIntermediateDirectories: true)
+    try JSONSerialization.data(withJSONObject: [
+      "sources": ["missing": ["git": source]]
+    ]).write(to: fixture.state("agents.json"))
+    let failure = try fixture.run(["skills", "add", "missing", "demo"])
+    #expect(failure.status == 1 && failure.stdout.isEmpty)
+    #expect(failure.stderr.hasPrefix("Error: Git could not clone \(source).\n"))
+    #expect(failure.stderr.hasSuffix("\n  Check Git access and the source location.\n"))
+    #expect(!failure.stderr.contains("cache/") && !failure.stderr.contains("Cloning into"))
+  }
+
   @Test func multilineGitFailureKeepsDiagnosticStructure() throws {
     let fixture = try CLIFixture()
     try fixture.skill()
@@ -12,8 +28,8 @@ struct HumanExecutableTests {
     try FileManager.default.removeItem(at: fixture.source.appendingPathComponent(".git"))
     let failure = try fixture.run(["skills", "update"])
     #expect(failure.status == 1 && failure.stdout.isEmpty)
-    #expect(failure.stderr.hasPrefix("Error: Command failed: /usr/bin/env git "))
-    #expect(failure.stderr.contains("\n  fatal: Could not read from remote repository.\n  \n"))
+    #expect(failure.stderr.hasPrefix("Error: Git could not fetch \(fixture.source.path).\n"))
+    #expect(failure.stderr.contains("\n  fatal: Could not read from remote repository.\n"))
     #expect(
       failure.stderr.hasSuffix(
         "  and the repository exists.\n  Check Git access and the source location.\n"))

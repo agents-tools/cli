@@ -146,11 +146,11 @@ struct HumanOutputTests {
 
   @Test func multilineErrorsIndentEveryContinuation() {
     let error = CoreError.commandFailed(
-      "git fetch origin\nfatal: Could not read from remote repository.\n\nError: remote text\n\n")
+      "tar -xf archive.tar\ntar: Error opening archive\n\nError: archive text\n\n")
     #expect(
       Terminal.formatError(
         String(describing: error), remedy: Terminal.failureRemedy(error, command: Add()))
-        == "Error: Command failed: git fetch origin\n  fatal: Could not read from remote repository.\n  \n  Error: remote text.\n  Check Git access and the source location.\n"
+        == "Error: Command failed: tar -xf archive.tar\n  tar: Error opening archive\n  \n  Error: archive text.\n  Check the command arguments and filesystem permissions.\n"
     )
   }
 
