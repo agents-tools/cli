@@ -88,8 +88,8 @@ swift package unedit core
 ```
 
 Keep the local edit inside your authorized development scope. Releases switch
-to a version range according to core's
-[release checklist](https://github.com/agents-tools/core/blob/master/Documentation/Reference/Release.md).
+to a version range according to the
+[release checklist](Documentation/Reference/Release.md).
 The CLI version is defined once in `Sources/CLI/EntryPoint.swift`.
 
 [Documentation](Documentation/README.md) indexes the command reference and schemas.

@@ -4,6 +4,8 @@
   state locations, and JSON contracts.
 - [JSON schemas](Reference/Schemas/): machine-readable schemas for list,
   update previews, watch status and diffs, installation, and doctor.
+- [Release checklist](Reference/Release.md): prepare and verify release commits,
+  publish signed tags, and validate the Homebrew formula.
 
 The package manifest owns target and dependency configuration. Shared lifecycle
 architecture is documented in
