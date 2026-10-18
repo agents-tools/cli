@@ -3,7 +3,9 @@ import ArgumentParser
 import Foundation
 
 struct ScopeOptions: ParsableArguments {
-  @Option(help: "State scope: project or user.", transform: parseScope)
+  @Option(
+    help: "Where state lives: project (./.agent) or user (~/.agents). Default: project.",
+    transform: parseScope)
   var scope: InstallScope = .project
 }
 
@@ -16,7 +18,23 @@ private func parseScope(_ value: String) throws -> InstallScope {
 
 struct AgentOptions: ParsableArguments {
   @Option(
-    name: .long, help: "Agent recipient; repeat for multiple agents.", transform: AgentID.parse)
+    name: .long,
+    help:
+      "Limit to this agent: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: all recipients.",
+    transform: AgentID.parse)
+  var agent: [AgentID] = []
+
+  var recipients: [AgentID]? {
+    agent.isEmpty ? nil : Array(Set(agent)).sorted { $0.rawValue < $1.rawValue }
+  }
+}
+
+struct AddAgentOptions: ParsableArguments {
+  @Option(
+    name: .long,
+    help:
+      "Agent to install for: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: the declaration's agents, else codex and claude-code.",
+    transform: AgentID.parse)
   var agent: [AgentID] = []
 
   var recipients: [AgentID]? {
@@ -25,7 +43,7 @@ struct AgentOptions: ParsableArguments {
 }
 
 struct DiscoveryOptions: ParsableArguments {
-  @Option(help: "Search this subdirectory within the source.")
+  @Option(help: "Search this subdirectory of the source.")
   var path: String?
 
   @Flag(help: "Search all source directories recursively.")

@@ -10,9 +10,23 @@ struct Agents: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "agents",
     abstract: "Manage agent skills from declared sources.",
-    version: "agents \(BuildInfo.version)",
+    discussion: """
+      Examples:
+        agents skills add github.com/owner/skills pdf-forms
+        agents skills list
+        agents install
+        agents update               Preview what re-resolving would change
+        agents update --apply       Write the updates and the new lock
+      """,
     subcommands: [Skills.self, Install.self, Update.self, Doctor.self]
   )
+
+  @Flag(help: "Show the version.") var version = false
+
+  func run() throws {
+    if version { throw CleanExit.message("agents \(BuildInfo.version)") }
+    throw CleanExit.helpRequest(self)
+  }
 }
 
 struct Skills: ParsableCommand {
@@ -29,6 +43,10 @@ enum EntryPoint {
     var command: any ParsableCommand
     do {
       let arguments = Array(CommandLine.arguments.dropFirst())
+      let options = arguments.prefix { $0 != "--" }
+      if options.contains("--version"), options.contains(where: { !$0.hasPrefix("-") }) {
+        throw ValidationError("--version is only available on 'agents'")
+      }
       try validateHelpPath(arguments)
       command = try Agents.parseAsRoot(arguments)
     } catch {

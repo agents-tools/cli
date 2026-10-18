@@ -233,12 +233,69 @@ struct ExecutableTests {
     ["skills", "list", "--help"], ["skills", "remove", "--help"],
     ["skills", "update", "--help"], ["skills", "init", "--help"],
     ["install", "--help"], ["update", "--help"], ["doctor", "--help"],
-    [], ["skills"], ["help", "skills", "add"],
+    [], ["skills"], ["help"], ["help", "skills", "add"],
   ])
   func help(_ arguments: [String]) throws {
     let fixture = try CLIFixture()
     let result = try fixture.success(arguments)
     #expect(result.stdout.contains("USAGE:"))
+    let isRoot = arguments.isEmpty || arguments == ["--help"] || arguments == ["help"]
+    #expect(result.stdout.contains("--version") == isRoot)
+  }
+
+  @Test func rootHelpExamples() throws {
+    let fixture = try CLIFixture()
+    let result = try fixture.success(["--help"])
+    #expect(result.stdout.contains("OVERVIEW: Manage agent skills from declared sources."))
+    #expect(
+      result.stdout.contains(
+        """
+        Examples:
+          agents skills add github.com/owner/skills pdf-forms
+          agents skills list
+          agents install
+          agents update               Preview what re-resolving would change
+          agents update --apply       Write the updates and the new lock
+        """))
+  }
+
+  @Test(arguments: [
+    (
+      [
+        ["skills", "add"], ["skills", "list"], ["skills", "remove"], ["skills", "update"],
+        ["install"], ["update"], ["doctor"],
+      ],
+      "Where state lives: project (./.agent) or user (~/.agents). Default: project."
+    ),
+    (
+      [["skills", "add"]],
+      "Agent to install for: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: the declaration's agents, else codex and claude-code."
+    ),
+    (
+      [["skills", "list"], ["skills", "remove"], ["doctor"]],
+      "Limit to this agent: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: all recipients."
+    ),
+    (
+      [["skills", "add"]],
+      "How to install: link (default), copy, or edit (a live link to a local source)."
+    ),
+    (
+      [["skills", "add"], ["skills", "list"]],
+      "Search this subdirectory of the source."
+    ),
+    ([["doctor"]], "Audit these project directories read-only. Repeat for several."),
+    (
+      [["skills", "add"]],
+      "Skills to add. Omit to add the source's only skill, or to list the choices when it has several."
+    ),
+  ])
+  func optionHelp(commands: [[String]], text: String) throws {
+    let fixture = try CLIFixture()
+    for command in commands {
+      let result = try fixture.success(command + ["--help"])
+      #expect(
+        result.stdout.split(whereSeparator: \.isWhitespace).joined(separator: " ").contains(text))
+    }
   }
 
   @Test func version() throws {
@@ -251,6 +308,11 @@ struct ExecutableTests {
     ["skills", "help", "unknown"], ["help", "skills", "unknown"],
     ["install", "--agent", "codex"], ["install", "--mode", "copy"],
     ["skills", "add", ".", "--exact", "bad"], ["update", "--json", "--apply"],
+    ["skills", "--version"], ["skills", "add", ".", "--version"],
+    ["skills", "list", "--version"], ["skills", "remove", "demo", "--version"],
+    ["skills", "update", "--version"], ["skills", "init", "--version"],
+    ["install", "--version"], ["update", "--version"], ["doctor", "--version"],
+    ["--version", "skills", "list"],
   ])
   func usageFailures(_ arguments: [String]) throws {
     let fixture = try CLIFixture()

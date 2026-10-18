@@ -75,7 +75,7 @@ struct Doctor: ParsableCommand {
   @OptionGroup var agents: AgentOptions
   @Option(
     name: .long, parsing: .upToNextOption,
-    help: "Project directories to audit; repeat or list several.")
+    help: "Audit these project directories read-only. Repeat for several.")
   var root: [String] = []
   @Flag(help: "Print the versioned JSON report.") var json = false
 

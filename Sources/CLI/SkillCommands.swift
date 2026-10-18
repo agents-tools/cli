@@ -9,13 +9,18 @@ struct Add: ParsableCommand {
 
   @Argument(help: "Git URL, local directory, well-known URL, or declared source alias.")
   var source: String
-  @Argument(help: "Skill names to select; omit to discover available skills.") var names: [String] =
-    []
+  @Argument(
+    help:
+      "Skills to add. Omit to add the source's only skill, or to list the choices when it has several."
+  )
+  var names: [String] = []
   @OptionGroup var location: ScopeOptions
-  @OptionGroup var agents: AgentOptions
+  @OptionGroup var agents: AddAgentOptions
   @OptionGroup var discovery: DiscoveryOptions
   @OptionGroup var requirements: RequirementOptions
-  @Option(help: "Installation mode: link, copy, or edit.", transform: parseMode)
+  @Option(
+    help: "How to install: link (default), copy, or edit (a live link to a local source).",
+    transform: parseMode)
   var mode: InstallMode = .link
   @Flag(help: "Select all skills, including future members on update.") var all = false
 

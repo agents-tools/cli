@@ -17,18 +17,32 @@ agents doctor [--root <dir>…] [--json]
 ```
 
 `agents --help`, `agents skills --help`, and each command's `--help` describe
-their options. Running a group without a subcommand prints help. `--version`
-prints `agents X.Y.Z`; the version constant lives in `Sources/CLI/EntryPoint.swift`.
+their options. Running a group without a subcommand prints help. `agents --version`
+prints `agents X.Y.Z` and is available only on the root command; the version
+constant lives in `Sources/CLI/EntryPoint.swift`.
+
+Root help includes:
+
+```text
+Examples:
+  agents skills add github.com/owner/skills pdf-forms
+  agents skills list
+  agents install
+  agents update               Preview what re-resolving would change
+  agents update --apply       Write the updates and the new lock
+```
 
 ## Shared Options
 
 | Option | Meaning | Commands |
 | --- | --- | --- |
-| `--scope project\|user` | Choose declaration and lock scope; default `project` | All lifecycle and read commands; `init` uses the current directory |
-| `--agent <agent>` | Choose recipients; repeat the option for several | `skills add`, `skills list`, `skills remove`, `doctor` |
-| `--path <subdir>` | Search inside a source-relative subdirectory | `skills add`, `skills list <source>` |
+| `--scope project\|user` | Where state lives: project (./.agent) or user (~/.agents). Default: project. | All lifecycle and read commands; `init` uses the current directory |
+| `--agent <agent>` | Agent to install for: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: the declaration's agents, else codex and claude-code. | `skills add` |
+| `--agent <agent>` | Limit to this agent: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: all recipients. | `skills list`, `skills remove`, `doctor` |
+| `--path <subdir>` | Search this subdirectory of the source. | `skills add`, `skills list <source>` |
 | `--full-depth` | Discover recursively beyond conventional skill directories | `skills add`, `skills list <source>` |
-| `--mode link\|copy\|edit` | Choose installation materialization; default `link` | `skills add` |
+| `--mode link\|copy\|edit` | How to install: link (default), copy, or edit (a live link to a local source). | `skills add` |
+| `--root <dir>…` | Audit these project directories read-only. Repeat for several. | `doctor` |
 | `--json` | Emit a versioned JSON report on stdout | `skills list`, `doctor`, both update previews |
 
 Agents are `codex`, `claude-code`, `cursor`, `gemini-cli`, and `opencode`.
@@ -48,10 +62,12 @@ Unsupported options are usage errors.
 
 `source` is a local path, Git URL or shorthand accepted by core, well-known
 HTTP source, or an existing declaration alias. Add writes the declaration,
-installations, and lock together. No names selects a sole discovered skill;
-multiple discovered skills are listed with selection guidance and are not
-installed. Explicit names select those skills. `--all` selects all current and
-future members on unnamed updates; combining names and `--all` is a usage error.
+installations, and lock together.
+
+`<names>`: Skills to add. Omit to add the source's only skill, or to list the
+choices when it has several. Explicit names select those skills. `--all` selects
+all current and future members on unnamed updates; combining names and `--all`
+is a usage error.
 
 `link` links verified, pinned cache content. `copy` installs pinned copies.
 Both require a Git repository for local sources and read committed content.
