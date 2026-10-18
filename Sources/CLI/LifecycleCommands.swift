@@ -1,4 +1,5 @@
 import AgentsCore
+import AgentsInstructions
 import AgentsSkills
 import ArgumentParser
 import Foundation
@@ -6,18 +7,38 @@ import Foundation
 struct Install: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "install",
-    abstract: "Restore skills using exact pins and recipients from the lock.")
+    abstract: "Restore skills and instructions using exact pins and recipients from the lock.")
 
   @OptionGroup var location: ScopeOptions
+  @Flag(help: "Print the versioned JSON report.") var json = false
 
   func run() throws {
     let report = try withRecovery {
       try SkillOperations.installResolvedReport(scope: location.scope)
     }
-    if report.installed.isEmpty {
-      Terminal.write("No locked skills to restore.\n")
+    if !json {
+      if report.installed.isEmpty {
+        Terminal.write("No locked skills to restore.\n")
+      } else {
+        Terminal.installed(report.installed)
+      }
+    }
+    let instructions = try withRecovery {
+      try InstructionOperations.installResolvedReport(scope: location.scope)
+    }
+    if json {
+      try Terminal.json(
+        InstallReport(
+          scope: location.scope.rawValue, skills: report.installed,
+          instructions: InstructionChanges(instructions)))
+      return
+    }
+    if instructions.targets.isEmpty {
+      Terminal.write("No locked instruction targets to restore.\n")
     } else {
-      Terminal.installed(report.installed)
+      for target in instructions.targets {
+        Terminal.write("Restored instructions in \(Terminal.line(target.url.path)).\n")
+      }
     }
   }
 }
@@ -31,31 +52,69 @@ struct UpdateOptions: ParsableArguments {
     if json && apply { throw ValidationError("--json is for previews; remove --apply or --json") }
   }
 
-  func run(names: [String] = []) throws {
-    let results = try withRecovery {
+  func updateSkills(names: [String] = []) throws -> [UpdateResult] {
+    try withRecovery {
       try SkillOperations.updateInstalled(
         scope: location.scope, skillNames: names, apply: apply,
         beforeApply: { Terminal.differences($0) })
     }
-    if json {
-      try Terminal.json(UpdateReport(scope: location.scope.rawValue, results: results))
-    } else if apply {
+  }
+
+  func finishSkills(_ results: [UpdateResult]) {
+    if apply {
       Terminal.write("Applied skill update.\n")
     } else {
       Terminal.differences(results)
-      if results.contains(where: \.changed) {
-        Terminal.write("Preview only. Run again with --apply to write these changes.\n")
-      }
+    }
+  }
+
+  func updateInstructions(agents: [AgentID]? = nil) throws -> InstructionUpdateReport {
+    try withRecovery {
+      try InstructionOperations.updateInstalled(
+        scope: location.scope, agents: agents, apply: apply,
+        beforeApply: { Terminal.instructionDifferences($0) })
+    }
+  }
+
+  func finishInstructions(_ result: InstructionUpdateReport) {
+    if apply {
+      Terminal.write("Applied instruction update.\n")
+      Terminal.promptReminder(result.changedPrompts)
+    } else {
+      Terminal.instructionDifferences(result)
+      previewNotice(changed: result.hasChanges)
+    }
+  }
+
+  func previewNotice(changed: Bool) {
+    if !apply && changed {
+      Terminal.write("Preview only. Run again with --apply to write these changes.\n")
     }
   }
 }
 
 struct Update: ParsableCommand {
   static let configuration = CommandConfiguration(
-    commandName: "update", abstract: "Preview or apply updates to all declared skills.")
+    commandName: "update",
+    abstract: "Preview or apply updates to all declared skills and instructions.")
   @OptionGroup var options: UpdateOptions
 
-  func run() throws { try options.run() }
+  func run() throws {
+    let skills = try options.updateSkills()
+    if !options.json { options.finishSkills(skills) }
+    let instructions = try options.updateInstructions()
+    if options.json {
+      try Terminal.json(
+        UpdateReport(
+          scope: options.location.scope.rawValue, results: skills,
+          instructions: InstructionChanges(instructions)))
+    } else {
+      options.finishInstructions(instructions)
+      if !instructions.hasChanges {
+        options.previewNotice(changed: skills.contains(where: \.changed))
+      }
+    }
+  }
 }
 
 struct UpdateSkills: ParsableCommand {
@@ -64,13 +123,24 @@ struct UpdateSkills: ParsableCommand {
   @Argument(help: "Limit the update to these skill names.") var names: [String] = []
   @OptionGroup var options: UpdateOptions
 
-  func run() throws { try options.run(names: names) }
+  func run() throws {
+    let results = try options.updateSkills(names: names)
+    if options.json {
+      try Terminal.json(UpdateReport(scope: options.location.scope.rawValue, results: results))
+    } else {
+      options.finishSkills(results)
+      options.previewNotice(changed: results.contains(where: \.changed))
+    }
+  }
 }
 
 struct Doctor: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "doctor",
-    abstract: "Compare skill installations with the lock and report problems.")
+    abstract: "Compare skills and instructions with the lock and report problems.",
+    discussion:
+      "The --agent filter limits skill installation checks. Instructions are audited across the scope's physical targets."
+  )
   @OptionGroup var location: ScopeOptions
   @OptionGroup var agents: AgentOptions
   @Option(
@@ -98,17 +168,19 @@ struct Doctor: ParsableCommand {
       else {
         throw CoreError.notFound("project directory \(project.path); provide an existing --root")
       }
-      let report = try withRecovery {
-        try SkillOperations.doctor(
-          scope: location.scope, agents: agents.recipients,
-          environment: RuntimeEnvironment(
-            projectDirectory: project, homeDirectory: environment.homeDirectory,
-            environment: environment.environment))
-      }
+      let runtime = RuntimeEnvironment(
+        projectDirectory: project, homeDirectory: environment.homeDirectory,
+        environment: environment.environment)
+      let report = try SkillOperations.doctor(
+        scope: location.scope, agents: agents.recipients,
+        environment: runtime)
+      let instructions = try InstructionOperations.doctor(
+        scope: location.scope, environment: runtime)
       reports.append(
         DoctorRoot(
           root: location.scope == .user ? environment.homeDirectory.path : project.path,
-          scope: location.scope.rawValue, report: report))
+          scope: location.scope.rawValue, report: report, instructions: instructions,
+          environment: runtime))
     }
     let report = DoctorOutput(roots: reports)
     if json {
@@ -118,7 +190,9 @@ struct Doctor: ParsableCommand {
         Terminal.write("\(Terminal.line(root.root)) (\(root.scope))\n")
         if root.checks.isEmpty { Terminal.write("  No problems found.\n") }
         for check in root.checks {
-          Terminal.write("  \(check.status): \(Terminal.line(check.message))\n")
+          let path = check.path.map { " (\(Terminal.line($0)))" } ?? ""
+          Terminal.write(
+            "  \(check.kind) \(check.status): \(Terminal.line(check.message))\(path)\n")
         }
       }
     }

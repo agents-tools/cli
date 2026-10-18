@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Skill diagnosis, version 1",
+  "title": "Skill and instruction diagnosis, version 1",
   "type": "object",
   "properties": {
     "schemaVersion": {
@@ -46,6 +46,12 @@
                 },
                 "path": {
                   "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "skills",
+                    "instructions"
+                  ]
                 }
               },
               "required": [

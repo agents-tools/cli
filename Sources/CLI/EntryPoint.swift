@@ -9,16 +9,18 @@ enum BuildInfo {
 struct Agents: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "agents",
-    abstract: "Manage agent skills from declared sources.",
+    abstract: "Manage agent skills and instructions from declared sources.",
     discussion: """
       Examples:
         agents skills add github.com/owner/skills pdf-forms
         agents skills list
+        agents instructions add <source> canonical-artifacts
+        agents instructions render chatgpt <prompt> | pbcopy
         agents install
         agents update               Preview what re-resolving would change
         agents update --apply       Write the updates and the new lock
       """,
-    subcommands: [Skills.self, Install.self, Update.self, Doctor.self]
+    subcommands: [Skills.self, InstructionsCommand.self, Install.self, Update.self, Doctor.self]
   )
 
   @Flag(help: "Show the version.") var version = false
@@ -43,11 +45,11 @@ enum EntryPoint {
     var command: any ParsableCommand
     do {
       let arguments = Array(CommandLine.arguments.dropFirst())
+      try validateCommandPath(arguments)
       let options = arguments.prefix { $0 != "--" }
       if options.contains("--version"), options.contains(where: { !$0.hasPrefix("-") }) {
         throw ValidationError("--version is only available on 'agents'")
       }
-      try validateHelpPath(arguments)
       command = try Agents.parseAsRoot(arguments)
     } catch {
       let code = Agents.exitCode(for: error)
@@ -69,16 +71,24 @@ enum EntryPoint {
       if let code = error as? ExitCode {
         Darwin.exit(code.rawValue)
       }
-      Terminal.error(Terminal.failureMessage(error))
+      Terminal.error(Terminal.failureMessage(error, command: command))
       Darwin.exit(1)
     }
   }
 
-  private static func validateHelpPath(_ arguments: [String]) throws {
+  private static func validateCommandPath(_ arguments: [String]) throws {
     var parent: any ParsableCommand.Type = Agents.self
     var isHelp = false
-    for name in arguments {
-      if name.hasPrefix("-") { return }
+    var tokens = arguments.makeIterator()
+    while let name = tokens.next() {
+      if name == "--" { return }
+      if name != "-", name.hasPrefix("-") {
+        if name == "--help" || name == "-h" { continue }
+        if !name.contains("="), try takesValue(name, command: parent) {
+          if tokens.next() == "--" { return }
+        }
+        continue
+      }
       if name == "help", !isHelp, !parent.configuration.subcommands.isEmpty {
         isHelp = true
         continue
@@ -88,10 +98,40 @@ enum EntryPoint {
           $0.configuration.commandName == name
         })
       else {
-        if !isHelp { return }
+        if !isHelp && parent.configuration.subcommands.isEmpty { return }
         throw ValidationError("Unknown command '\(name)'")
       }
       parent = child
     }
+  }
+
+  // `_dumpHelp()` is outside ArgumentParser's stability guarantee: revalidate the
+  // unknown-command tests in ExecutableTests on every parser upgrade, including patches.
+  private static func takesValue(_ name: String, command: any ParsableCommand.Type) throws -> Bool {
+    let help = try JSONDecoder().decode(CommandHelp.self, from: Data(command._dumpHelp().utf8))
+    return help.command.arguments.contains { argument in
+      argument.kind == "option"
+        && argument.names?.contains {
+          ($0.kind == "long" ? "--" : "-") + $0.name == name
+        } == true
+    }
+  }
+}
+
+private struct CommandHelp: Decodable {
+  let command: Definition
+
+  struct Definition: Decodable {
+    let arguments: [Argument]
+  }
+
+  struct Argument: Decodable {
+    let kind: String
+    let names: [Name]?
+  }
+
+  struct Name: Decodable {
+    let kind: String
+    let name: String
   }
 }

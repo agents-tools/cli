@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Instruction update preview, version 1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "scope": {
+      "enum": [
+        "project",
+        "user"
+      ]
+    },
+    "changed": {
+      "type": "boolean"
+    },
+    "instructions": {
+      "$ref": "instructions.schema.json#/$defs/changes"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "scope",
+    "changed",
+    "instructions"
+  ]
+}

@@ -1,4 +1,7 @@
+import AgentsCore
+import AgentsInstructions
 import AgentsSkills
+import Foundation
 
 // These DTOs own the CLI schema independently of core's Codable representations.
 struct InstalledListReport: Encodable {
@@ -68,11 +71,13 @@ struct UpdateReport: Encodable {
   let scope: String
   let changed: Bool
   let skills: [UpdateItem]
+  let instructions: InstructionChanges?
 
-  init(scope: String, results: [UpdateResult]) {
+  init(scope: String, results: [UpdateResult], instructions: InstructionChanges? = nil) {
     self.scope = scope
-    changed = results.contains(where: \.changed)
+    changed = results.contains(where: \.changed) || instructions?.changed == true
     skills = results.map(UpdateItem.init)
+    self.instructions = instructions
   }
 }
 
@@ -146,24 +151,65 @@ struct DoctorRoot: Encodable {
   let ok: Bool
   let checks: [CheckItem]
 
-  init(root: String, scope: String, report: DoctorReport) {
+  init(
+    root: String, scope: String, report: DoctorReport, instructions: InstructionDoctorReport,
+    environment: RuntimeEnvironment
+  ) {
     self.root = root
     self.scope = scope
-    ok = report.ok
-    checks = report.checks.map(CheckItem.init)
+    checks =
+      report.checks.map { CheckItem($0, environment: environment) }
+      + instructions.diagnostics.map { CheckItem($0, environment: environment) }
+    ok = !checks.contains { $0.status == "error" }
   }
 }
 
 struct CheckItem: Encodable {
+  let kind: String
   let id: String
   let status: String
   let message: String
   let path: String?
 
-  init(_ check: DoctorCheck) {
+  init(_ check: DoctorCheck, environment: RuntimeEnvironment) {
+    kind = "skills"
     id = check.id
-    status = check.status.rawValue
-    message = check.message
+    status = check.id == "pending-recovery" ? "error" : check.status.rawValue
+    message =
+      check.id == "pending-recovery"
+      ? Self.pendingRecoveryMessage(path: check.path, environment: environment) : check.message
     path = check.path
+  }
+
+  init(_ diagnostic: InstructionDiagnostic, environment: RuntimeEnvironment) {
+    kind = "instructions"
+    id = diagnostic.kind.rawValue
+    switch diagnostic.kind {
+    case .invalidTarget, .conflict, .invalidConfiguration, .stateUnavailable, .pendingRecovery:
+      status = "error"
+    default:
+      status = "warning"
+    }
+    message =
+      diagnostic.kind == .pendingRecovery
+      ? Self.pendingRecoveryMessage(path: diagnostic.path?.path, environment: environment)
+      : diagnostic.message
+    path = diagnostic.path?.path
+  }
+
+  private static func pendingRecoveryMessage(path: String?, environment: RuntimeEnvironment)
+    -> String
+  {
+    let state = path.map { URL(fileURLWithPath: $0).standardizedFileURL.path }
+    let action: String
+    switch state {
+    case StateStore(scope: .user, environment: environment).directory.path:
+      action = "'agents install --scope user'"
+    case StateStore(scope: .project, environment: environment).directory.path:
+      action = "'agents install' in '\(environment.projectDirectory.path)'"
+    default:
+      action = "a command that changes the affected state directory"
+    }
+    return "Transaction recovery is pending; run \(action) to finish recovery."
   }
 }

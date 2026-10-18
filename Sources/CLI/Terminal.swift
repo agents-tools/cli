@@ -1,5 +1,7 @@
 import AgentsCore
+import AgentsInstructions
 import AgentsSkills
+import ArgumentParser
 import Foundation
 
 func withRecovery<T>(
@@ -29,13 +31,13 @@ enum Terminal {
       .joined()
   }
 
-  static func failureMessage(_ error: Error) -> String {
+  static func failureMessage(_ error: Error, command: any ParsableCommand) -> String {
     let action: String
     switch error {
     case CoreError.transactionRecovered:
       action = "retry the command after other writers finish"
     case CoreError.invalidSource, CoreError.notFound:
-      action = "check the source, skill names, and paths"
+      action = "check the source, names, and paths"
     case CoreError.unsafePath:
       action = "use a path within the source directory"
     case CoreError.invalidSkill:
@@ -44,6 +46,19 @@ enum Terminal {
       action = "check the scope's agents.json, agents.resolved, and recovery journal"
     case CoreError.commandFailed:
       action = "check Git access and the source location"
+    case InstructionError.conflictingSections:
+      if command is AddInstructions {
+        action =
+          "inspect the differences and rerun with --replace to replace the conflicting custom sections"
+      } else {
+        action =
+          "edit or remove the conflicting custom sections in the target file, or rerun 'agents instructions add' with --replace, then retry"
+      }
+    case InstructionError.emptyPrompt:
+      action =
+        "declare the ChatGPT prompt in agents.json and run 'agents instructions update --apply'"
+    case is InstructionError:
+      action = "check the instruction source and target Markdown with 'agents doctor'"
     default:
       action = "check the command arguments and filesystem permissions"
     }
@@ -87,6 +102,81 @@ enum Terminal {
         snapshot(change.before, prefix: "-")
         snapshot(change.after, prefix: "+")
       }
+    }
+  }
+
+  static func availableInstructions(_ sections: [InstructionUnit]) {
+    if sections.isEmpty { write("No instruction sections found in source.\n") }
+    for unit in sections {
+      write("\(line(unit.record.name))  \(line(unit.section.heading))\n")
+    }
+  }
+
+  static func managedInstructions(_ report: InstructionListReport) {
+    if report.sections.isEmpty && report.targets.isEmpty && report.prompts.isEmpty {
+      write("No managed \(report.scope) instructions.\n")
+    }
+    for section in report.sections {
+      write("\(line(section.name))  \(line(section.source))  \(line(section.revision ?? "none"))\n")
+    }
+    for target in report.targets {
+      write("Target \(line(target.target))  \(target.agents.joined(separator: ", "))\n")
+    }
+    for prompt in report.prompts {
+      write(
+        "ChatGPT \(line(prompt.name))  \(prompt.sections.map { line($0.name) }.joined(separator: ", "))\n"
+      )
+    }
+  }
+
+  static func instructionDifferences(_ report: InstructionUpdateReport) {
+    if !report.hasChanges { write("No instruction changes.\n") }
+    if report.lockMissing
+      && (!report.sections.isEmpty || !report.targets.isEmpty || !report.changedPrompts.isEmpty)
+    {
+      write("Instruction lock is missing; applying will record resolved content.\n")
+    }
+    for section in report.sections {
+      let name = section.after?.name ?? section.before?.name ?? ""
+      let source = section.after?.source ?? section.before?.source ?? ""
+      write("Changed instruction \(line(name))  \(line(source))\n")
+      write(
+        "  revision: \(line(section.before?.revision ?? "none")) -> \(line(section.after?.revision ?? "none"))\n"
+      )
+      write(
+        "  hash: \(line(section.before?.hash ?? "none")) -> \(line(section.after?.hash ?? "none"))\n"
+      )
+    }
+    for target in report.targets {
+      for section in target.assembly.adoptedSections {
+        write("Adopt \(line(section)) in \(line(target.url.path))\n")
+      }
+      for conflict in target.assembly.conflicts {
+        write("Conflict \(line(conflict.sectionID)) in \(line(target.url.path))\n")
+      }
+      if target.agentsChanged {
+        let before = (target.beforeAgents ?? []).map(\.rawValue).joined(separator: ", ")
+        let after = target.afterAgents.map(\.rawValue).joined(separator: ", ")
+        write(
+          "Recipients of \(line(target.url.path)): \(line(before.isEmpty ? "none" : before)) -> \(line(after.isEmpty ? "none" : after))\n"
+        )
+      }
+      if target.changed {
+        write("--- before/\(line(target.url.path))\n+++ after/\(line(target.url.path))\n")
+        snapshot(target.before.map(SkillFileEntry.file), prefix: "-")
+        snapshot(target.after.map(SkillFileEntry.file), prefix: "+")
+      }
+    }
+    for prompt in report.changedPrompts { write("Changed ChatGPT prompt \(line(prompt)).\n") }
+  }
+
+  static func promptReminder(_ prompts: [String]) {
+    if prompts.isEmpty { return }
+    write("Re-paste changed ChatGPT prompts (removed prompts must be cleared):\n")
+    for prompt in prompts {
+      write(
+        "  \(line(prompt)) — render with 'agents instructions render chatgpt <prompt>' in the same scope.\n"
+      )
     }
   }
 

@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Instruction report definitions, version 1",
+  "$defs": {
+    "section": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "hash": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "source",
+        "path",
+        "hash"
+      ]
+    },
+    "changes": {
+      "type": "object",
+      "properties": {
+        "changed": {
+          "type": "boolean"
+        },
+        "lockMissing": {
+          "type": "boolean"
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "before": {
+                "$ref": "#/$defs/section"
+              },
+              "after": {
+                "$ref": "#/$defs/section"
+              }
+            },
+            "required": []
+          }
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "changed": {
+                "type": "boolean"
+              },
+              "agentsChanged": {
+                "type": "boolean"
+              },
+              "beforeAgents": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "afterAgents": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "before": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "file"
+                  },
+                  "base64": {
+                    "type": "string",
+                    "contentEncoding": "base64"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "base64"
+                ]
+              },
+              "after": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "file"
+                  },
+                  "base64": {
+                    "type": "string",
+                    "contentEncoding": "base64"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "base64"
+                ]
+              },
+              "drift": {
+                "enum": [
+                  "clean",
+                  "drifted",
+                  "missingBlock"
+                ]
+              },
+              "adoptedSections": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "conflicts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "section": {
+                      "type": "string"
+                    },
+                    "existing": {
+                      "type": "string"
+                    },
+                    "proposed": {
+                      "type": "string"
+                    },
+                    "difference": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "section",
+                    "existing",
+                    "proposed",
+                    "difference"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "target",
+              "path",
+              "changed",
+              "agentsChanged",
+              "beforeAgents",
+              "afterAgents",
+              "adoptedSections",
+              "conflicts"
+            ]
+          }
+        },
+        "changedPrompts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "changed",
+        "lockMissing",
+        "sections",
+        "targets",
+        "changedPrompts"
+      ]
+    }
+  }
+}
