@@ -33,7 +33,7 @@ struct AddAgentOptions: ParsableArguments {
   @Option(
     name: .long,
     help:
-      "Agent to install for: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: the declaration's agents, else codex and claude-code.",
+      "Agent to install for: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: the agents already recorded for this skill or source, else the declaration's agents, else codex and claude-code.",
     transform: AgentID.parse)
   var agent: [AgentID] = []
 

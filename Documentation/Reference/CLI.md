@@ -37,7 +37,7 @@ Examples:
 | Option | Meaning | Commands |
 | --- | --- | --- |
 | `--scope project\|user` | Where state lives: project (./.agent) or user (~/.agents). Default: project. | All lifecycle and read commands; `init` uses the current directory |
-| `--agent <agent>` | Agent to install for: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: the declaration's agents, else codex and claude-code. | `skills add` |
+| `--agent <agent>` | Agent to install for: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: the agents already recorded for this skill or source, else the declaration's agents, else codex and claude-code. | `skills add` |
 | `--agent <agent>` | Limit to this agent: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: all recipients. | `skills list`, `skills remove`, `doctor` |
 | `--path <subdir>` | Search this subdirectory of the source. | `skills add`, `skills list <source>` |
 | `--full-depth` | Discover recursively beyond conventional skill directories | `skills add`, `skills list <source>` |
@@ -47,8 +47,9 @@ Examples:
 
 Agents are `codex`, `claude-code`, `cursor`, `gemini-cli`, and `opencode`.
 Core also accepts `claude` and `gemini` as input aliases. Output uses canonical
-IDs. On add, omitted recipients use declaration defaults (initially Codex and
-Claude Code). On installed list, remove, and doctor, omission covers all
+IDs. On add, omitted recipients use the agents already recorded for the skill
+or source, then declaration defaults (initially Codex and Claude Code).
+On installed list, remove, and doctor, omission covers all
 recipients. Source listing shows available skills regardless of recipients.
 Doctor's agent filter limits installation checks; source checks cover the scope.
 
