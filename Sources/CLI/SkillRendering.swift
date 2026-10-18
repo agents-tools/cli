@@ -124,13 +124,27 @@ extension Terminal {
     return .symbolicLink(target)
   }
 
+  private static func physicalPath(_ url: URL) -> String {
+    var parent = url.standardizedFileURL
+    var suffix: [String] = []
+    // Preview destinations can be absent; resolve their existing ancestry.
+    while parent.path != "/" && !FileManager.default.fileExists(atPath: parent.path) {
+      suffix.append(parent.lastPathComponent)
+      parent.deleteLastPathComponent()
+    }
+    return suffix.reversed().reduce(parent.resolvingSymlinksInPath()) {
+      $0.appendingPathComponent($1)
+    }.path
+  }
+
   private static func isCacheLinkChange(
     _ change: SkillFileChange, result: UpdateResult, previous: SkillOutputInventory,
     paths: HumanPaths
   ) -> Bool {
     if previous.modes[result.skill]?.values.contains(.edit) == true { return false }
     if change.after != nil && result.newHash == nil && result.newRevision == nil { return false }
-    let cache = StateStore(scope: paths.scope, environment: paths.environment).cacheDirectory.path
+    let cache = physicalPath(
+      StateStore(scope: paths.scope, environment: paths.environment).cacheDirectory)
     func cached(_ entry: SkillFileEntry?) -> Bool {
       guard let entry else { return true }
       guard case .symbolicLink(let destination) = entry else { return false }
@@ -138,8 +152,7 @@ extension Terminal {
         fileURLWithPath: destination,
         relativeTo: URL(fileURLWithPath: change.path).deletingLastPathComponent()
       )
-      .standardizedFileURL.path
-      return target.hasPrefix(cache + "/")
+      return physicalPath(target).hasPrefix(cache + "/")
     }
     return cached(change.before) && cached(change.after)
   }
