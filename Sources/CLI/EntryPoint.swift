@@ -59,7 +59,8 @@ enum EntryPoint {
         print(Agents.fullMessage(for: error))
         return
       }
-      Terminal.error("\(Agents.message(for: error)); run 'agents --help' for usage.")
+      Terminal.error(
+        Terminal.joiningError(Agents.message(for: error), remedy: "Run 'agents --help' for usage."))
       Darwin.exit(64)
     }
     do {

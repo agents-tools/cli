@@ -37,7 +37,7 @@ struct Install: ParsableCommand {
       Terminal.write("No locked instruction targets to restore.\n")
     } else {
       for target in instructions.targets {
-        Terminal.write("Restored instructions in \(Terminal.line(target.url.path)).\n")
+        Terminal.write("Restored instructions in \(location.paths.path(target.url.path)).\n")
       }
     }
   }
@@ -56,15 +56,17 @@ struct UpdateOptions: ParsableArguments {
     try withRecovery {
       try SkillOperations.updateInstalled(
         scope: location.scope, skillNames: names, apply: apply,
-        beforeApply: { Terminal.differences($0) })
+        beforeApply: { Terminal.differences($0, paths: location.paths) })
     }
   }
 
   func finishSkills(_ results: [UpdateResult]) {
     if apply {
-      Terminal.write("Applied skill update.\n")
+      for path in Set(results.flatMap(\.installed).map(\.path)).sorted() {
+        Terminal.write("Updated \(location.paths.path(path)).\n")
+      }
     } else {
-      Terminal.differences(results)
+      Terminal.differences(results, paths: location.paths)
     }
   }
 
@@ -72,16 +74,15 @@ struct UpdateOptions: ParsableArguments {
     try withRecovery {
       try InstructionOperations.updateInstalled(
         scope: location.scope, agents: agents, apply: apply,
-        beforeApply: { Terminal.instructionDifferences($0) })
+        beforeApply: { Terminal.instructionDifferences($0, paths: location.paths) })
     }
   }
 
   func finishInstructions(_ result: InstructionUpdateReport) {
     if apply {
-      Terminal.write("Applied instruction update.\n")
-      Terminal.promptReminder(result.changedPrompts)
+      Terminal.updatedInstructions(result, paths: location.paths)
     } else {
-      Terminal.instructionDifferences(result)
+      Terminal.instructionDifferences(result, paths: location.paths)
       previewNotice(changed: result.hasChanges)
     }
   }
@@ -101,18 +102,19 @@ struct Update: ParsableCommand {
 
   func run() throws {
     let skills = try options.updateSkills()
-    if !options.json { options.finishSkills(skills) }
     let instructions = try options.updateInstructions()
     if options.json {
       try Terminal.json(
         UpdateReport(
           scope: options.location.scope.rawValue, results: skills,
           instructions: InstructionChanges(instructions)))
-    } else {
+    } else if options.apply {
+      options.finishSkills(skills)
       options.finishInstructions(instructions)
-      if !instructions.hasChanges {
-        options.previewNotice(changed: skills.contains(where: \.changed))
-      }
+    } else {
+      Terminal.updateDifferences(
+        skills: skills, instructions: instructions, paths: options.location.paths)
+      options.previewNotice(changed: skills.contains(where: \.changed) || instructions.hasChanges)
     }
   }
 }
@@ -187,10 +189,10 @@ struct Doctor: ParsableCommand {
       try Terminal.json(report)
     } else {
       for root in reports {
-        Terminal.write("\(Terminal.line(root.root)) (\(root.scope))\n")
+        Terminal.write("\(location.paths.path(root.root)) (\(root.scope))\n")
         if root.checks.isEmpty { Terminal.write("  No problems found.\n") }
         for check in root.checks {
-          let path = check.path.map { " (\(Terminal.line($0)))" } ?? ""
+          let path = check.path.map { " (\(location.paths.path($0)))" } ?? ""
           Terminal.write(
             "  \(check.kind) \(check.status): \(Terminal.line(check.message))\(path)\n")
         }

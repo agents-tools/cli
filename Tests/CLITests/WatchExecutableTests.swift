@@ -116,8 +116,8 @@ struct WatchExecutableTests {
     #expect(changed["oldPath"] as? String == "skills/frontend-design")
 
     let diff = try fixture.success(["watch", "diff", alias, "frontend-design"] + scopeOptions)
-    #expect(diff.stdout.hasPrefix("~ changed  frontend-design (skill)\n"))
-    #expect(diff.stdout.contains("--- before/SKILL.md\n+++ after/SKILL.md\n"))
+    #expect(diff.stdout.hasPrefix("~ changed  frontend-design  "))
+    #expect(diff.stdout.contains("--- a/SKILL.md\n+++ b/SKILL.md\n"))
     #expect(diff.stdout.contains("-Original content") && diff.stdout.contains("+Updated content"))
     #expect(!diff.stdout.contains("team-rules"))
     let diffJSON = try fixture.success(
@@ -184,11 +184,11 @@ struct WatchExecutableTests {
     try fixture.instruction("shared", body: "Changed\u{1B}[31m instructions\t")
     try fixture.commit()
     let diff = try fixture.success(["watch", "diff", "source", "shared"]).stdout
-    #expect(diff.contains("~ changed  shared (instructions)\n"))
-    #expect(diff.contains("~ changed  shared (skill)\n"))
-    #expect(diff.contains("- [non-executable]\n") && diff.contains("+ [executable]\n"))
-    #expect(diff.contains("- [symlink -> run.sh]\n+ [symlink -> SKILL.md]\n"))
-    #expect(diff.contains("+ [binary file, 2 bytes; base64: AP8=]\n"))
+    #expect(diff.contains("~ changed  shared (instructions)  "))
+    #expect(diff.contains("~ changed  shared  "))
+    #expect(diff.contains("mode run.sh: 644 -> 755\n"))
+    #expect(diff.contains("link link: run.sh -> SKILL.md\n"))
+    #expect(diff.contains("Binary file data.bin differs\n"))
     #expect(!diff.contains("\u{1B}") && !diff.contains("\t"))
     let json = try fixture.success([
       "watch", "diff", "source", "shared", "--kind", "skill", "--json",
@@ -213,7 +213,7 @@ struct WatchExecutableTests {
     ] {
       let result = try fixture.run(["watch"] + arguments)
       #expect(result.status == 1 && result.stdout.isEmpty)
-      #expect(result.stderr.contains("run 'agents watch' to list subscriptions"))
+      #expect(result.stderr.contains("Run 'agents watch' to list subscriptions"))
     }
     try fixture.skill()
     try fixture.commit()
@@ -223,7 +223,7 @@ struct WatchExecutableTests {
       let result = try fixture.run(["watch", "seen", "source", "--revision=\(revision)"])
       #expect(result.status == 1 && result.stdout.isEmpty)
       #expect(result.stderr.split(separator: "\n").count == 1)
-      #expect(result.stderr.contains("provide a Git revision that resolves to a commit"))
+      #expect(result.stderr.contains("Provide a Git revision that resolves to a commit"))
       #expect(try Data(contentsOf: fixture.state("agents.watch")) == baseline)
     }
   }
@@ -240,7 +240,7 @@ struct WatchExecutableTests {
     #expect(result.status == 0)
     #expect(
       result.stderr
-        == "Recovered interrupted transaction at \(staging.deletingLastPathComponent().path); retrying once.\n"
+        == "Recovered interrupted transaction at .agent; retrying once.\n"
     )
     #expect(!result.stdout.contains("Recovered"))
     #expect(!FileManager.default.fileExists(atPath: staging.path))

@@ -146,7 +146,7 @@ When a project Claude file exists, core adds a managed import of `AGENTS.md`
 where needed. Existing forwarding and custom content are preserved.
 
 Conflicting custom sections stop add with differences in the diagnostic.
-`--replace` displays before/after target snapshots before replacing conflicts.
+`--replace` displays a unified target diff before replacing conflicts.
 `instructions remove <names…>` removes sections from file targets and ChatGPT
 prompts. Use `source-alias:name` if a bare name is ambiguous. Empty managed
 blocks are removed; files created by core are deleted only when no custom
@@ -178,8 +178,8 @@ in declared order, followed by the current append file bytes, without markers
 or status text. It does not resolve upstream versions. An absent prompt or one
 without locked sections fails. Add `--scope user` for a user prompt.
 
-Update previews list changed prompts. After apply, the CLI tells the user to
-re-paste them; removed prompts must be cleared in ChatGPT. Core detects changes
+Update previews and `--apply` list changed prompts. Re-paste changed prompts;
+removed prompts must be cleared in ChatGPT. Core detects changes
 to section bytes, membership, order, or append path. Edits to the append file's
 contents are read at render time and are not tracked as prompt changes.
 
@@ -201,7 +201,7 @@ github.com/anthropics/skills  3 commits since a1b2c3d (now 9f8e7d6)
   + new      pdf-forms
   ~ changed  frontend-design   4 files
   - removed  legacy-docx
-local:/Users/me/Developer/rules  up to date
+local:~/Developer/rules  up to date
 ```
 
 The Git count is commits reachable from the current head but not the seen
@@ -211,14 +211,26 @@ or `up to date`. Instruction and artifact names carry `(instructions)` or
 new and removed items omit the file count. An empty scope prints
 `No watched sources.`
 
-`watch diff <source> [name]` prints each changed item's heading, such as
-`~ changed  frontend-design (skill)`, followed by full before/after snapshots
-using update preview rendering. All headings include the kind. File paths are
-relative to the item; snapshots retain executable mode (`[executable]` or
-`[non-executable]`), text, base64 binary bytes, symbolic-link destinations,
-directories, and absent entries. `--kind skill|instructions|artifact` filters
-changes and disambiguates shared names. With no matching changes, diff prints
-`up to date`.
+`watch diff <source> [name]` prints each changed item's heading and unified
+line diffs with three lines of context. File paths are relative to the item.
+`--kind skill|instructions|artifact` filters changes and disambiguates shared
+names. With no matching changes, diff prints `up to date`.
+
+```text
+~ changed  code-review (instructions)  local:~/Developer/team-rules  abc1234 -> def5678
+--- a/code-review.md
++++ b/code-review.md
+@@ -1,3 +1,3 @@
+ # Code Review
+ Review checklist:
+-Review the code.
++Review the code and tests.
+```
+
+Mode changes print `mode run.sh: 644 -> 755`; unchanged modes are omitted.
+Binary content prints `Binary file <path> differs`. Links print
+`link <path>: <old> -> <new>` (`none` for an absent link); directories print
+`directory <path> added` or `directory <path> removed`.
 
 `watch seen <source>` acknowledges current content. `--revision <rev>` resolves
 a Git revision to its full commit ID and can select an older commit. Well-known
@@ -257,17 +269,62 @@ including membership changes in `all` selections. `instructions update` resolves
 all declared sections and ChatGPT prompts. Top-level `update` handles skills,
 then instructions.
 
-`--apply` prints old/new revisions, hashes, and full before/after file snapshots
-before core replaces targets and lock together. File output includes deletion,
-directory, symbolic-link destination, text, and binary bytes (base64). This is
-a full snapshot comparison, not a minimal unified patch. A preview can become
-stale; `--apply` resolves again and displays the content it will actually write.
-`--json --apply` is a usage error.
+Human update item lines use `+ new`, `~ changed`, `= repinned`, and `- removed`.
+Repinned means only the pin moved and content is identical. Items sort in that
+order, then by name, with skills before instructions for the same name.
+Top-level previews combine both kinds; `--apply` keeps core's skill-then-instruction
+operation order and sorts within each operation.
+Instruction names carry `(instructions)`. Revisions use seven characters;
+a version, when available, appears as `1.2.0 (abc1234)`. Core exposes version
+labels for instruction updates; skill updates expose revisions only. Item
+summaries omit hashes. Live edit records have no pins; when core supplies no
+file changes or membership information, the CLI reports a changed item.
 
-Instruction updates print `Recipients of <path>: <before> -> <after>` before
-each target's byte diff when its recipients change, including changes that
-leave the file bytes identical. Each side lists comma-separated agent IDs;
-`none` means no recipients or no previous lock entry.
+```text
+~ changed  code-review (instructions)  local:~/Developer/team-rules  abc1234 -> def5678
+= repinned  commits (instructions)  local:~/Developer/team-rules  abc1234 -> def5678
+AGENTS.md (claude-code, codex)
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -4,3 +4,3 @@
+ # Code Review
+ Review checklist:
+-Review the code.
++Review the code and tests.
+Preview only. Run again with --apply to write these changes.
+```
+
+All file comparisons use unified line diffs with three lines of context and
+`--- a/<path>`, `+++ b/<path>`, and `@@` hunk headers. New files use
+`--- /dev/null`; removed files use `+++ /dev/null`. Missing trailing newlines
+are marked with `\ No newline at end of file`. Empty file creation or removal
+has file headers without a hunk. Binary, mode, link, and directory changes use
+the same rendering as watch diffs. Core's skill update snapshots do not include
+executable modes, so permission-only skill changes cannot be displayed there.
+Watch diffs include mode changes.
+
+Instruction targets print `<path> (<recipients>)` before their diff. Recipient
+changes print `Recipients of AGENTS.md: codex -> claude-code, codex`, including
+changes with identical file bytes. Each side lists sorted agent IDs; `none`
+means no recipients or no previous lock entry.
+
+`--apply` prints the preview before each core operation writes, followed by
+`Updated <path>.` for each written target, with no generic success banner.
+A preview can become stale; `--apply` resolves again and displays the content
+it will actually write. `--json --apply` is a usage error.
+
+Add and remove confirmations name their content and destinations:
+
+```text
+Installed pdf for claude-code, codex (link).
+Added code-review, commits to AGENTS.md (claude-code, codex).
+Removed commits from AGENTS.md.
+Updated AGENTS.md.
+```
+
+Normal instruction adds print only the completion lines. Replacing conflicting
+custom sections with `--replace` prints the conflict diff first. Instruction
+removal prints target diffs before its completion lines.
 
 `install` restores skills, then instruction targets, using exact locked pins,
 hashes, modes, recipients, and heading offsets. It does not resolve newer versions and takes no source argument. Unavailable pins or content
@@ -327,7 +384,21 @@ operation once. A second recovery or any other failure stops the command.
 Human-readable stdout is the default. Commands are non-interactive and never
 prompt; add, remove, init, and install perform their named actions immediately.
 Only `update --apply` writes an update. Diagnostics and recovery notices go to
-stderr. Errors are one line containing the cause and a suggested action.
+stderr. Human paths are project-relative inside the project in project scope,
+`~/…` under HOME, and absolute otherwise. Local source IDs abbreviate HOME,
+for example `local:~/Developer/team-rules`. Installed skill listings use the
+same path rules. JSON retains full revisions, hashes, and absolute paths.
+
+Errors are one line with a punctuated cause, followed by a capitalized remedy
+sentence:
+
+```text
+Error: No ChatGPT prompt named 'daily' is declared. Declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'.
+Error: Unknown option '--all'. Did you mean '--path'? Run 'agents --help' for usage.
+```
+
+A declared ChatGPT prompt without locked sections retains the diagnostic
+`A ChatGPT prompt must have at least one locked section.`
 Terminal control characters in human-readable source text are replaced by spaces.
 ChatGPT render preserves its content exactly, including whitespace and the
 append file's final newline behavior; only diagnostics go to stderr.

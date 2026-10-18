@@ -11,7 +11,7 @@ func withRecovery<T>(
   do {
     return try operation()
   } catch CoreError.transactionRecovered(let path) {
-    report("Recovered interrupted transaction at \(path); retrying once.")
+    report("Recovered interrupted transaction at \(HumanPaths().path(path)); retrying once.")
     return try operation()
   }
 }
@@ -67,6 +67,9 @@ enum Terminal {
         action =
           "edit or remove the conflicting custom sections in the target file, or rerun 'agents instructions add' with --replace, then retry"
       }
+    case HumanOutputError.undeclaredPrompt:
+      action =
+        "declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'"
     case InstructionError.emptyPrompt:
       action =
         "declare the ChatGPT prompt in agents.json and run 'agents instructions update --apply'"
@@ -75,7 +78,7 @@ enum Terminal {
     default:
       action = "check the command arguments and filesystem permissions"
     }
-    return "\(error); \(action)."
+    return joiningError(String(describing: error), remedy: action)
   }
 
   static func json(_ value: some Encodable) throws {
@@ -92,29 +95,67 @@ enum Terminal {
     }
   }
 
+  static func joiningError(_ message: String, remedy: String) -> String {
+    func sentence(_ text: String, capitalize: Bool) -> String {
+      var text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+      if capitalize, let first = text.first {
+        text = first.uppercased() + text.dropFirst()
+      }
+      if let last = text.last, !".!?。！？".contains(last) { text += "." }
+      return text
+    }
+    return sentence(message, capitalize: false) + " " + sentence(remedy, capitalize: true)
+  }
+
   static func installed(_ results: [InstallResult]) {
-    for result in results.sorted(by: {
-      ($0.skill, $0.agent.rawValue) < ($1.skill, $1.agent.rawValue)
-    }) {
-      write(
-        "Installed \(line(result.skill)) for \(result.agent.rawValue) (\(result.mode.rawValue)).\n")
+    for name in Set(results.map(\.skill)).sorted() {
+      let installs = results.filter { $0.skill == name }
+      let modes = Set(installs.map { $0.mode.rawValue }).sorted()
+      let recipients = installs.sorted { $0.agent.rawValue < $1.agent.rawValue }.map {
+        $0.agent.rawValue + (modes.count > 1 ? " (\($0.mode.rawValue))" : "")
+      }.joined(separator: ", ")
+      let mode = modes.count == 1 ? " (\(modes[0]))" : ""
+      write("Installed \(line(name)) for \(recipients)\(mode).\n")
     }
   }
 
-  static func differences(_ results: [UpdateResult]) {
-    let changed = results.filter(\.changed)
-    if changed.isEmpty { write("No skill changes.\n") }
-    for result in changed {
-      write("Changed \(line(result.skill))\n")
-      write(
-        "  revision: \(line(result.oldRevision ?? "none")) -> \(line(result.newRevision ?? "none"))\n"
-      )
-      write("  hash: \(line(result.oldHash ?? "none")) -> \(line(result.newHash ?? "none"))\n")
-      for change in result.changes {
-        write("--- before/\(line(change.path))\n+++ after/\(line(change.path))\n")
-        snapshot(change.before, prefix: "-")
-        snapshot(change.after, prefix: "+")
+  static func skillItems(_ results: [UpdateResult]) -> [HumanItem] {
+    results.filter(\.changed).map { result in
+      let live =
+        result.oldHash == nil && result.newHash == nil
+        && result.oldRevision == nil && result.newRevision == nil
+      return HumanItem(
+        name: result.skill, source: result.sourceIdentity,
+        existed: result.oldHash != nil || result.oldRevision != nil
+          || (live && (result.changes.isEmpty || result.changes.contains { $0.before != nil })),
+        exists: result.newHash != nil || result.newRevision != nil
+          || (live && (result.changes.isEmpty || result.changes.contains { $0.after != nil })),
+        oldRevision: result.oldRevision, newRevision: result.newRevision,
+        sameContent: result.oldHash != nil && result.oldHash == result.newHash,
+        otherChanges: result.changes.contains {
+          if case .symbolicLink = $0.before, case .symbolicLink = $0.after { return false }
+          return true
+        })
+    }
+  }
+
+  static func differences(_ results: [UpdateResult], paths: HumanPaths = HumanPaths()) {
+    let items = HumanItem.ordered(skillItems(results))
+    if items.isEmpty { write("No skill changes.\n") }
+    for item in items {
+      write(item.render(paths: paths))
+      for result in results where result.skill == item.name && result.sourceIdentity == item.source
+      {
+        skillFileDifferences(result, paths: paths)
       }
+    }
+  }
+
+  static func skillFileDifferences(_ result: UpdateResult, paths: HumanPaths) {
+    for change in result.changes {
+      fileDifference(
+        path: change.path, before: change.before.map(HumanFileEntry.init),
+        after: change.after.map(HumanFileEntry.init), paths: paths)
     }
   }
 
@@ -125,15 +166,17 @@ enum Terminal {
     }
   }
 
-  static func managedInstructions(_ report: InstructionListReport) {
+  static func managedInstructions(_ report: InstructionListReport, paths: HumanPaths) {
     if report.sections.isEmpty && report.targets.isEmpty && report.prompts.isEmpty {
       write("No managed \(report.scope) instructions.\n")
     }
     for section in report.sections {
-      write("\(line(section.name))  \(line(section.source))  \(line(section.revision ?? "none"))\n")
+      write(
+        "\(line(section.name))  \(paths.source(section.source))  \(line(HumanItem.pin(revision: section.revision, version: section.version)))\n"
+      )
     }
     for target in report.targets {
-      write("Target \(line(target.target))  \(target.agents.joined(separator: ", "))\n")
+      write("Target \(paths.path(target.target))  \(target.agents.joined(separator: ", "))\n")
     }
     for prompt in report.prompts {
       write(
@@ -142,45 +185,80 @@ enum Terminal {
     }
   }
 
-  static func instructionDifferences(_ report: InstructionUpdateReport) {
+  static func instructionItems(_ report: InstructionUpdateReport) -> [HumanItem] {
+    report.sections.map { section in
+      HumanItem(
+        name: section.after?.name ?? section.before?.name ?? "", instructions: true,
+        source: section.after?.source ?? section.before?.source ?? "",
+        existed: section.before != nil, exists: section.after != nil,
+        oldRevision: section.before?.revision, newRevision: section.after?.revision,
+        oldVersion: section.before?.version, newVersion: section.after?.version,
+        sameContent: section.before?.hash == section.after?.hash,
+        otherChanges: section.before?.source != section.after?.source
+          || section.before?.path != section.after?.path)
+    }
+  }
+
+  static func updateDifferences(
+    skills: [UpdateResult], instructions: InstructionUpdateReport, paths: HumanPaths
+  ) {
+    let items = HumanItem.ordered(skillItems(skills) + instructionItems(instructions))
+    for item in items { write(item.render(paths: paths)) }
+    if !skills.contains(where: \.changed) { write("No skill changes.\n") }
+    for item in items where !item.instructions {
+      if let result = skills.first(where: {
+        $0.skill == item.name && $0.sourceIdentity == item.source
+      }) {
+        skillFileDifferences(result, paths: paths)
+      }
+    }
+    if !instructions.hasChanges { write("No instruction changes.\n") }
+    instructionTargets(instructions.targets, paths: paths)
+    for prompt in instructions.changedPrompts { write("Changed ChatGPT prompt \(line(prompt)).\n") }
+  }
+
+  static func instructionDifferences(
+    _ report: InstructionUpdateReport, paths: HumanPaths = HumanPaths()
+  ) {
     if !report.hasChanges { write("No instruction changes.\n") }
-    if report.lockMissing
-      && (!report.sections.isEmpty || !report.targets.isEmpty || !report.changedPrompts.isEmpty)
-    {
-      write("Instruction lock is missing; applying will record resolved content.\n")
-    }
-    for section in report.sections {
-      let name = section.after?.name ?? section.before?.name ?? ""
-      let source = section.after?.source ?? section.before?.source ?? ""
-      write("Changed instruction \(line(name))  \(line(source))\n")
-      write(
-        "  revision: \(line(section.before?.revision ?? "none")) -> \(line(section.after?.revision ?? "none"))\n"
-      )
-      write(
-        "  hash: \(line(section.before?.hash ?? "none")) -> \(line(section.after?.hash ?? "none"))\n"
-      )
-    }
-    for target in report.targets {
+    for item in HumanItem.ordered(instructionItems(report)) { write(item.render(paths: paths)) }
+    instructionTargets(report.targets, paths: paths)
+    for prompt in report.changedPrompts { write("Changed ChatGPT prompt \(line(prompt)).\n") }
+  }
+
+  static func instructionTargets(_ targets: [InstructionTargetChange], paths: HumanPaths) {
+    for target in targets {
+      let path = paths.path(target.url.path)
       for section in target.assembly.adoptedSections {
-        write("Adopt \(line(section)) in \(line(target.url.path))\n")
+        write("Adopt \(line(section)) in \(path)\n")
       }
       for conflict in target.assembly.conflicts {
-        write("Conflict \(line(conflict.sectionID)) in \(line(target.url.path))\n")
+        write("Conflict \(line(conflict.sectionID)) in \(path)\n")
       }
       if target.agentsChanged {
-        let before = (target.beforeAgents ?? []).map(\.rawValue).joined(separator: ", ")
-        let after = target.afterAgents.map(\.rawValue).joined(separator: ", ")
         write(
-          "Recipients of \(line(target.url.path)): \(line(before.isEmpty ? "none" : before)) -> \(line(after.isEmpty ? "none" : after))\n"
+          "Recipients of \(path): \(recipients(target.beforeAgents ?? [])) -> \(recipients(target.afterAgents))\n"
         )
       }
       if target.changed {
-        write("--- before/\(line(target.url.path))\n+++ after/\(line(target.url.path))\n")
-        snapshot(target.before.map(SkillFileEntry.file), prefix: "-")
-        snapshot(target.after.map(SkillFileEntry.file), prefix: "+")
+        write(
+          "\(path) (\(recipients(target.afterAgents.isEmpty ? target.beforeAgents ?? [] : target.afterAgents)))\n"
+        )
+        fileDifference(
+          path: target.url.path, before: target.before.map { .file($0) },
+          after: target.after.map { .file($0) }, paths: paths)
       }
     }
-    for prompt in report.changedPrompts { write("Changed ChatGPT prompt \(line(prompt)).\n") }
+  }
+
+  static func recipients(_ agents: [AgentID]) -> String {
+    agents.isEmpty ? "none" : agents.map(\.rawValue).sorted().joined(separator: ", ")
+  }
+
+  static func updatedInstructions(_ report: InstructionUpdateReport, paths: HumanPaths) {
+    for target in report.targets where target.changed {
+      write("Updated \(paths.path(target.url.path)).\n")
+    }
   }
 
   static func promptReminder(_ prompts: [String]) {
@@ -193,27 +271,4 @@ enum Terminal {
     }
   }
 
-  static func snapshot(
-    _ entry: SkillFileEntry?, prefix: String, executable: Bool? = nil,
-    write: (String) -> Void = Terminal.write
-  ) {
-    switch entry {
-    case nil: write("\(prefix) [absent]\n")
-    case .directory: write("\(prefix) [directory]\n")
-    case .symbolicLink(let destination): write("\(prefix) [symlink -> \(line(destination))]\n")
-    case .file(let data):
-      if let executable {
-        write("\(prefix) [\(executable ? "executable" : "non-executable")]\n")
-      }
-      if let text = String(data: data, encoding: .utf8), !data.contains(0) {
-        for textLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
-          write("\(prefix)\(line(String(textLine)))\n")
-        }
-        if !text.hasSuffix("\n") { write("\\ No newline at end of file\n") }
-      } else {
-        write(
-          "\(prefix) [binary file, \(data.count) bytes; base64: \(data.base64EncodedString())]\n")
-      }
-    }
-  }
 }
