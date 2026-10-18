@@ -105,6 +105,8 @@ enum EntryPoint {
     }
   }
 
+  // `_dumpHelp()` is outside ArgumentParser's stability guarantee: revalidate the
+  // unknown-command tests in ExecutableTests on every parser upgrade, including patches.
   private static func takesValue(_ name: String, command: any ParsableCommand.Type) throws -> Bool {
     let help = try JSONDecoder().decode(CommandHelp.self, from: Data(command._dumpHelp().utf8))
     return help.command.arguments.contains { argument in
