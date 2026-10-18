@@ -317,7 +317,7 @@ struct InstructionExecutableTests {
       (preview["instructions"] as? [String: Any])?["changedPrompts"] as? [String] == ["weekly"])
     let applied = try fixture.success(["update", "--apply"])
     let skillsIndex = try #require(
-      applied.stdout.range(of: "Updated .agents/skills/demo.")?.lowerBound)
+      applied.stdout.range(of: "Updated demo for codex.")?.lowerBound)
     let instructionsIndex = try #require(
       applied.stdout.range(of: "~ changed  canonical-artifacts (instructions)")?.lowerBound)
     #expect(instructionsIndex < skillsIndex)

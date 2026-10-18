@@ -52,21 +52,24 @@ struct UpdateOptions: ParsableArguments {
     if json && apply { throw ValidationError("--json is for previews; remove --apply or --json") }
   }
 
-  func updateSkills(names: [String] = []) throws -> [UpdateResult] {
+  func updateSkills(names: [String] = []) throws -> (
+    results: [UpdateResult], previous: SkillOutputInventory
+  ) {
     try withRecovery {
-      try SkillOperations.updateInstalled(
+      let previous =
+        json ? SkillOutputInventory() : SkillOutputInventory.read(scope: location.scope)
+      let results = try SkillOperations.updateInstalled(
         scope: location.scope, skillNames: names, apply: apply,
-        beforeApply: { Terminal.differences($0, paths: location.paths) })
+        beforeApply: { Terminal.differences($0, previous: previous, paths: location.paths) })
+      return (results, previous)
     }
   }
 
-  func finishSkills(_ results: [UpdateResult]) {
+  func finishSkills(_ results: [UpdateResult], previous: SkillOutputInventory) {
     if apply {
-      for path in Set(results.flatMap(\.installed).map(\.path)).sorted() {
-        Terminal.write("Updated \(location.paths.path(path)).\n")
-      }
+      Terminal.updatedSkills(results, previous: previous)
     } else {
-      Terminal.differences(results, paths: location.paths)
+      Terminal.differences(results, previous: previous, paths: location.paths)
     }
   }
 
@@ -106,15 +109,17 @@ struct Update: ParsableCommand {
     if options.json {
       try Terminal.json(
         UpdateReport(
-          scope: options.location.scope.rawValue, results: skills,
+          scope: options.location.scope.rawValue, results: skills.results,
           instructions: InstructionChanges(instructions)))
     } else if options.apply {
-      options.finishSkills(skills)
+      options.finishSkills(skills.results, previous: skills.previous)
       options.finishInstructions(instructions)
     } else {
       Terminal.updateDifferences(
-        skills: skills, instructions: instructions, paths: options.location.paths)
-      options.previewNotice(changed: skills.contains(where: \.changed) || instructions.hasChanges)
+        skills: skills.results, previous: skills.previous, instructions: instructions,
+        paths: options.location.paths)
+      options.previewNotice(
+        changed: skills.results.contains(where: \.changed) || instructions.hasChanges)
     }
   }
 }
@@ -126,12 +131,13 @@ struct UpdateSkills: ParsableCommand {
   @OptionGroup var options: UpdateOptions
 
   func run() throws {
-    let results = try options.updateSkills(names: names)
+    let skills = try options.updateSkills(names: names)
     if options.json {
-      try Terminal.json(UpdateReport(scope: options.location.scope.rawValue, results: results))
+      try Terminal.json(
+        UpdateReport(scope: options.location.scope.rawValue, results: skills.results))
     } else {
-      options.finishSkills(results)
-      options.previewNotice(changed: results.contains(where: \.changed))
+      options.finishSkills(skills.results, previous: skills.previous)
+      options.previewNotice(changed: skills.results.contains(where: \.changed))
     }
   }
 }

@@ -117,7 +117,8 @@ struct WatchExecutableTests {
 
     let diff = try fixture.success(["watch", "diff", alias, "frontend-design"] + scopeOptions)
     #expect(diff.stdout.hasPrefix("~ changed  frontend-design  "))
-    #expect(diff.stdout.contains("--- a/SKILL.md\n+++ b/SKILL.md\n"))
+    #expect(
+      diff.stdout.contains("--- a/frontend-design/SKILL.md\n+++ b/frontend-design/SKILL.md\n"))
     #expect(diff.stdout.contains("-Original content") && diff.stdout.contains("+Updated content"))
     #expect(!diff.stdout.contains("team-rules"))
     let diffJSON = try fixture.success(
@@ -186,9 +187,9 @@ struct WatchExecutableTests {
     let diff = try fixture.success(["watch", "diff", "source", "shared"]).stdout
     #expect(diff.contains("~ changed  shared (instructions)  "))
     #expect(diff.contains("~ changed  shared  "))
-    #expect(diff.contains("mode run.sh: 644 -> 755\n"))
-    #expect(diff.contains("link link: run.sh -> SKILL.md\n"))
-    #expect(diff.contains("Binary file data.bin differs\n"))
+    #expect(diff.contains("mode shared/run.sh: 644 -> 755\n"))
+    #expect(diff.contains("link shared/link: run.sh -> SKILL.md\n"))
+    #expect(diff.contains("Binary file shared/data.bin differs\n"))
     #expect(!diff.contains("\u{1B}") && !diff.contains("\t"))
     let json = try fixture.success([
       "watch", "diff", "source", "shared", "--kind", "skill", "--json",

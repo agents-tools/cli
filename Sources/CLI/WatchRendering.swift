@@ -45,7 +45,8 @@ extension Terminal {
       )
       for file in item.files {
         fileDifference(
-          path: file.path, before: file.before.map(HumanFileEntry.init),
+          path: item.kind == .skill ? item.name + "/" + file.path : file.path,
+          before: file.before.map(HumanFileEntry.init),
           after: file.after.map(HumanFileEntry.init), paths: paths)
       }
     }

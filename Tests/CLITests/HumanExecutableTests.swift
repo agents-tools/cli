@@ -28,6 +28,7 @@ struct HumanExecutableTests {
     let repinned = try #require(preview.range(of: "= repinned  commits (instructions)")?.lowerBound)
     #expect(changed < repinned)
     #expect(preview.contains("= repinned  pdf"))
+    #expect(!preview.contains("link pdf:") && !preview.contains("cache/"))
     #expect(preview.contains("\(revision.prefix(7)) -> \(newRevision.prefix(7))"))
     #expect(
       preview.contains("AGENTS.md (claude-code, codex)\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@"))
@@ -35,7 +36,7 @@ struct HumanExecutableTests {
     let applied = try fixture.success(["update", "--apply"]).stdout
     #expect(
       applied.hasSuffix(
-        "Updated .agents/skills/pdf.\nUpdated .claude/skills/pdf.\nUpdated AGENTS.md.\n"))
+        "Updated pdf for claude-code, codex.\nUpdated AGENTS.md.\n"))
     let removed = try fixture.success(["instructions", "remove", "commits"]).stdout
     #expect(removed.contains("--- a/AGENTS.md\n+++ b/AGENTS.md\n@@"))
     #expect(removed.hasSuffix("Removed commits from AGENTS.md.\n"))

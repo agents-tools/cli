@@ -112,11 +112,13 @@ struct Remove: ParsableCommand {
   }
 
   func run() throws {
-    let removed = try withRecovery {
-      try SkillOperations.remove(
+    let (removed, previous) = try withRecovery {
+      let previous = SkillOutputInventory.read(scope: location.scope, agents: agents.recipients)
+      let removed = try SkillOperations.remove(
         skillNames: names, scope: location.scope, agents: agents.recipients)
+      return (removed, previous)
     }
-    for name in removed { Terminal.write("Removed \(Terminal.line(name)).\n") }
+    Terminal.removedSkills(removed, previous: previous)
   }
 }
 

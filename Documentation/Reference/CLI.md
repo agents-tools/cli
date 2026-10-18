@@ -212,7 +212,9 @@ new and removed items omit the file count. An empty scope prints
 `No watched sources.`
 
 `watch diff <source> [name]` prints each changed item's heading and unified
-line diffs with three lines of context. File paths are relative to the item.
+line diffs with three lines of context. Skill paths are relative to the skill
+root and prefixed by the skill name, such as `pdf/SKILL.md`. Instruction and
+artifact paths are relative to the item.
 `--kind skill|instructions|artifact` filters changes and disambiguates shared
 names. With no matching changes, diff prints `up to date`.
 
@@ -227,7 +229,7 @@ names. With no matching changes, diff prints `up to date`.
 +Review the code and tests.
 ```
 
-Mode changes print `mode run.sh: 644 -> 755`; unchanged modes are omitted.
+Mode changes print `mode pdf/run.sh: 644 -> 755`; unchanged modes are omitted.
 Binary content prints `Binary file <path> differs`. Links print
 `link <path>: <old> -> <new>` (`none` for an absent link); directories print
 `directory <path> added` or `directory <path> removed`.
@@ -275,10 +277,9 @@ order, then by name, with skills before instructions for the same name.
 Top-level previews combine both kinds; `--apply` keeps core's skill-then-instruction
 operation order and sorts within each operation.
 Instruction names carry `(instructions)`. Revisions use seven characters;
-a version, when available, appears as `1.2.0 (abc1234)`. Core exposes version
-labels for instruction updates; skill updates expose revisions only. Item
-summaries omit hashes. Live edit records have no pins; when core supplies no
-file changes or membership information, the CLI reports a changed item.
+instruction versions appear as `1.2.0 (abc1234)`, while skill updates show
+revisions. Item summaries omit hashes. Live edit records show `none` for pins;
+a pinless result with no file differences is reported as changed.
 
 ```text
 ~ changed  code-review (instructions)  local:~/Developer/team-rules  abc1234 -> def5678
@@ -299,9 +300,26 @@ All file comparisons use unified line diffs with three lines of context and
 `--- /dev/null`; removed files use `+++ /dev/null`. Missing trailing newlines
 are marked with `\ No newline at end of file`. Empty file creation or removal
 has file headers without a hunk. Binary, mode, link, and directory changes use
-the same rendering as watch diffs. Core's skill update snapshots do not include
-executable modes, so permission-only skill changes cannot be displayed there.
-Watch diffs include mode changes.
+the same rendering as watch diffs. Watch diffs include executable-mode changes;
+skill update diffs compare content bytes, links, and directories.
+
+Skill content differences appear once per skill, using paths relative to its
+root prefixed by its name. Identical changes across installations are combined.
+Recipient-specific differences, such as divergent local copies, are labeled by
+recipient. Installation links moving between cached snapshots are omitted.
+Links to live edit targets and changes between link, copy, and edit modes remain
+visible, as do symbolic links within the skill content.
+
+```text
+~ changed  pdf  local:~/Developer/team-rules  abc1234 -> def5678
+--- a/pdf/SKILL.md
++++ b/pdf/SKILL.md
+@@ -6,3 +6,3 @@
+ # PDF
+ Usage:
+-Inspect PDF pages.
++Inspect PDF pages and metadata.
+```
 
 Instruction targets print `<path> (<recipients>)` before their diff. Recipient
 changes print `Recipients of AGENTS.md: codex -> claude-code, codex`, including
@@ -309,7 +327,9 @@ changes with identical file bytes. Each side lists sorted agent IDs; `none`
 means no recipients or no previous lock entry.
 
 `--apply` prints the preview before each core operation writes, followed by
-`Updated <path>.` for each written target, with no generic success banner.
+`Updated <skill> for <recipients>.` for skills and `Updated <path>.` for
+instruction targets. Removed skill recipients get
+`Removed <skill> for <recipients>.` There is no generic success banner.
 A preview can become stale; `--apply` resolves again and displays the content
 it will actually write. `--json --apply` is a usage error.
 
@@ -319,6 +339,8 @@ Add and remove confirmations name their content and destinations:
 Installed pdf for claude-code, codex (link).
 Added code-review, commits to AGENTS.md (claude-code, codex).
 Removed commits from AGENTS.md.
+Updated pdf for claude-code, codex.
+Removed pdf for claude-code, codex.
 Updated AGENTS.md.
 ```
 

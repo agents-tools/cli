@@ -139,23 +139,17 @@ enum Terminal {
     }
   }
 
-  static func differences(_ results: [UpdateResult], paths: HumanPaths = HumanPaths()) {
+  static func differences(
+    _ results: [UpdateResult], previous: SkillOutputInventory, paths: HumanPaths = HumanPaths()
+  ) {
     let items = HumanItem.ordered(skillItems(results))
     if items.isEmpty { write("No skill changes.\n") }
     for item in items {
       write(item.render(paths: paths))
       for result in results where result.skill == item.name && result.sourceIdentity == item.source
       {
-        skillFileDifferences(result, paths: paths)
+        skillFileDifferences(result, previous: previous, paths: paths)
       }
-    }
-  }
-
-  static func skillFileDifferences(_ result: UpdateResult, paths: HumanPaths) {
-    for change in result.changes {
-      fileDifference(
-        path: change.path, before: change.before.map(HumanFileEntry.init),
-        after: change.after.map(HumanFileEntry.init), paths: paths)
     }
   }
 
@@ -200,7 +194,8 @@ enum Terminal {
   }
 
   static func updateDifferences(
-    skills: [UpdateResult], instructions: InstructionUpdateReport, paths: HumanPaths
+    skills: [UpdateResult], previous: SkillOutputInventory, instructions: InstructionUpdateReport,
+    paths: HumanPaths
   ) {
     let items = HumanItem.ordered(skillItems(skills) + instructionItems(instructions))
     for item in items { write(item.render(paths: paths)) }
@@ -209,7 +204,7 @@ enum Terminal {
       if let result = skills.first(where: {
         $0.skill == item.name && $0.sourceIdentity == item.source
       }) {
-        skillFileDifferences(result, paths: paths)
+        skillFileDifferences(result, previous: previous, paths: paths)
       }
     }
     if !instructions.hasChanges { write("No instruction changes.\n") }

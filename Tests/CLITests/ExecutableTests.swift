@@ -310,10 +310,10 @@ struct ExecutableTests {
     #expect((byName["empty"]?["before"] as? [String: String]) == ["kind": "directory"])
     #expect(byName["empty"]?["after"] == nil && byName["obsolete"]?["after"] == nil)
     let apply = try fixture.success(["skills", "update", "demo", "--apply"])
-    #expect(apply.stdout.contains("Binary file .agents/skills/demo/binary differs"))
+    #expect(apply.stdout.contains("Binary file demo/binary differs"))
     #expect(
-      apply.stdout.contains("link .agents/skills/demo/link: SKILL.md -> binary")
-        && apply.stdout.contains("directory .agents/skills/demo/empty removed"))
+      apply.stdout.contains("link demo/link: SKILL.md -> binary")
+        && apply.stdout.contains("directory demo/empty removed"))
     #expect(apply.stdout.contains("+++ /dev/null"))
     #expect(!FileManager.default.fileExists(atPath: target.appendingPathComponent("obsolete").path))
     #expect(!FileManager.default.fileExists(atPath: target.appendingPathComponent("empty").path))
