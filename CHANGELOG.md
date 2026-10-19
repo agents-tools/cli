@@ -6,6 +6,10 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 
 ## Unreleased
 
+## [0.1.0] - 2026-10-19
+
+The first release of `agents`, built on agents-tools/core 0.1.0.
+
 ### Added
 
 - Skill commands to add, list, remove, update, and initialize skills, with
@@ -20,3 +24,7 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 
 - Top-level updates report only changed skills, instructions, and prompts.
 - Concise Git errors include actionable remedies.
+- Adding or installing a skill never replaces a directory, file, or link that
+  the scope's lock does not manage, such as a hand-written skill.
+
+[0.1.0]: https://github.com/agents-tools/cli/releases/tag/0.1.0
