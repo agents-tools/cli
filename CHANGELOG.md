@@ -6,6 +6,10 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 
 ## Unreleased
 
+## [0.1.1] - 2026-10-20
+
+Built on agents-tools/core 0.1.1.
+
 ### Fixed
 
 - Sources accept typed selectors, as in
@@ -37,4 +41,5 @@ The first release of `agents`, built on agents-tools/core 0.1.0.
 - Adding or installing a skill never replaces a directory, file, or link that
   the scope's lock does not manage, such as a hand-written skill.
 
+[0.1.1]: https://github.com/agents-tools/cli/releases/tag/0.1.1
 [0.1.0]: https://github.com/agents-tools/cli/releases/tag/0.1.0
