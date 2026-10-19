@@ -118,13 +118,14 @@ including combined `--json` reports.
 The [documentation index](Documentation/README.md) links the command reference,
 JSON schemas, and release checklist. Start with the
 [CLI reference](Documentation/Reference/CLI.md) for options, state locations,
-output, and exit codes.
+output, and exit codes. See the [changelog](CHANGELOG.md) for user-visible changes.
 
 ## Contributing
 
 Read the organization's
 [contributing guide](https://github.com/agents-tools/.github/blob/master/CONTRIBUTING.md)
-and follow the [development instructions](#development) below.
+and [maintenance change flow](https://github.com/agents-tools/.github/blob/master/MAINTENANCE.md#change-flow),
+then follow the repository's [development instructions](#development) below.
 
 ### Development
 
@@ -154,6 +155,27 @@ Keep the local edit inside your authorized development scope. Releases switch
 to a version range according to the
 [release checklist](Documentation/Reference/Release.md).
 The CLI version is defined once in `Sources/CLI/EntryPoint.swift`.
+
+### Continuous integration
+
+The workflows run on branch pushes, pull requests, and manual dispatch. Source
+policy also runs when a pull-request title changes. The required contexts are
+declared in the organization's
+[maintenance standard](https://github.com/agents-tools/.github/blob/master/MAINTENANCE.md#activation-and-required-checks):
+
+| Context | Validation |
+| --- | --- |
+| `policy / policy` | Conventional Commit subjects, PR title, and added-line policy |
+| `validate / swift-package` | Strict format lint, debug build, tests, release build, and diff check |
+| `smoke` | Release executable help, version, and unknown-command exit code 64 in an isolated environment |
+| `presentation / presentation` | Committed terminal demo SVGs match their recording and recipe |
+
+Shared workflows are pinned together to a reviewed full commit SHA. Follow the
+[integration guide](https://github.com/agents-tools/.github/blob/master/Documentation/Reference/WorkflowIntegration.md)
+when updating them, and verify the exact contexts on the candidate's real run.
+For workflow edits, run `actionlint` (or parse every workflow as YAML) alongside
+the development checks above. Weekly Dependabot updates cover Swift packages
+and GitHub Actions.
 
 ## License
 

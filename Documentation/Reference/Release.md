@@ -27,8 +27,8 @@ and publishing each refuse to run unless the earlier blocks set their markers.
    minor version. Update `BuildInfo.version` in `Sources/CLI/EntryPoint.swift`;
    it is compiled into the binary and works in source archives without Git.
    Tests compare output against this constant, not a duplicate version literal.
-3. Prepare release notes covering changes, fixes, and upgrade steps. Use signed
-   Conventional Commits and follow the normal review and merge process.
+3. Prepare release notes covering changes, fixes, and upgrade steps. Follow the
+   organization's [maintenance change flow](https://github.com/agents-tools/.github/blob/master/MAINTENANCE.md#change-flow).
 
 ## Verify the Release Commit
 
@@ -36,6 +36,9 @@ Use a clean task or detached worktree at the exact merged release candidate.
 Do not build in the main checkout. Fetch tags, record `release_commit`, and
 confirm it equals `origin/master`. Confirm CI passed on this exact commit,
 including strict format, release build, tests, and smoke checks.
+
+Run this local validation to completion independently of development CI runs;
+development CI is not release validation.
 
 ```sh
 unset checked_commit checked_version verified_tag &&
@@ -45,12 +48,16 @@ unset checked_commit checked_version verified_tag &&
   test "$release_commit" = "$master_commit" &&
   worktree_status=$(git status --porcelain) &&
   test -z "$worktree_status" &&
-  swift build &&
-  env -u CODEX_HOME -u CLAUDE_CONFIG_DIR -u XDG_CONFIG_HOME -u XDG_STATE_HOME -u XDG_CACHE_HOME swift test &&
-  swift build -c release &&
+  rm -rf .build/release-validation &&
+  swift build -c release --scratch-path .build/release-validation \
+    --disable-dependency-cache --manifest-cache none &&
+  env -u CODEX_HOME -u CLAUDE_CONFIG_DIR -u XDG_CONFIG_HOME \
+    -u XDG_STATE_HOME -u XDG_CACHE_HOME swift test \
+    --scratch-path .build/release-validation \
+    --disable-dependency-cache --manifest-cache none &&
   xcrun swift-format lint --strict --configuration .swift-format --recursive Package.swift Sources Tests &&
   git diff --check origin/master &&
-  .build/release/agents --help &&
+  .build/release-validation/release/agents --help &&
   checked_commit=$release_commit
 ```
 
@@ -66,7 +73,7 @@ with the intended version.
 unset checked_version verified_tag &&
   version=X.Y.Z &&
   tag="$version" &&
-  actual=$(.build/release/agents --version) &&
+  actual=$(.build/release-validation/release/agents --version) &&
   test "$actual" = "agents $version" &&
   existing=$(git tag --list "$tag") &&
   test -z "$existing" &&
@@ -153,3 +160,6 @@ The chain ends by checking that the installed `agents --version` prints
 `agents $version`. Publish the tap change only after its candidate passes;
 remove the disposable environment afterward. Record the release commit, core
 pin, archive digest, and formula validation in the release handoff.
+
+After publication, remove `.build/release-validation` and retire the release
+worktree once the accepted commit, tag, and validation results are recorded.
