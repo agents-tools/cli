@@ -54,7 +54,23 @@ an upstream change:
 
 ## Install
 
-Build from source:
+Install the latest release from the Homebrew tap:
+
+```sh
+brew install agents-tools/tap/agents
+agents --help
+```
+
+For a development build of `master`, use:
+
+```sh
+brew install --HEAD agents-tools/tap/agents
+```
+
+See the [tap documentation](https://github.com/agents-tools/homebrew-tap#readme)
+for packaging and channel details.
+
+To build from source instead:
 
 ```sh
 git clone https://github.com/agents-tools/cli.git
