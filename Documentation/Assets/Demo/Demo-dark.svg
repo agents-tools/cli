@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="763" height="788" viewBox="0 0 763 788" role="img" aria-labelledby="title">
+<title id="title">agents</title>
+<rect x="0.5" y="0.5" width="762" height="787" rx="10.0" fill="#0E0F24" stroke="#2A2C55"/>
+<path d="M 10.0 0.5 H 753.0 Q 762.5 .5 762.5 10.0 V 34.0 H .5 V 10.0 Q .5 .5 10.0 .5 Z" fill="#16183A"/>
+<path d="M 0 34.0 H 763" stroke="#2A2C55"/>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14.0" fill="#C8C7E6">
+<text x="381.5" y="22.0" text-anchor="middle" fill="#8785AE">agents</text>
+<text x="20.0" y="68.0" xml:space="preserve"><tspan fill="#8F8AFF">$ </tspan><tspan fill="#F1F0FF">agents skills add ~/team-rules pdf</tspan></text>
+<text x="20.0" y="89.0" xml:space="preserve">Installed pdf for claude-code, codex (link).</text>
+<text x="20.0" y="110.0" xml:space="preserve"></text>
+<text x="20.0" y="131.0" xml:space="preserve"><tspan fill="#8F8AFF">$ </tspan><tspan fill="#F1F0FF">agents instructions add ~/team-rules code-review commits</tspan></text>
+<text x="20.0" y="152.0" xml:space="preserve">Added code-review, commits to AGENTS.md (claude-code, codex).</text>
+<text x="20.0" y="173.0" xml:space="preserve"></text>
+<text x="20.0" y="194.0" xml:space="preserve"><tspan fill="#8F8AFF">$ </tspan><tspan fill="#F1F0FF">agents watch add ~/team-rules</tspan></text>
+<text x="20.0" y="215.0" xml:space="preserve">Watching local:~/team-rules from 44daeea.</text>
+<text x="20.0" y="236.0" xml:space="preserve"></text>
+<text x="20.0" y="257.0" xml:space="preserve"><tspan fill="#8F8AFF">$ </tspan><tspan fill="#F1F0FF">git -C ~/team-rules commit -qam &quot;docs: review tests&quot;</tspan></text>
+<text x="20.0" y="278.0" xml:space="preserve"></text>
+<text x="20.0" y="299.0" xml:space="preserve"></text>
+<text x="20.0" y="320.0" xml:space="preserve"><tspan fill="#8F8AFF">$ </tspan><tspan fill="#F1F0FF">agents watch</tspan></text>
+<text x="20.0" y="341.0" xml:space="preserve">local:~/team-rules  1 commit since 44daeea (now 5dd2f69)</text>
+<text x="20.0" y="362.0" xml:space="preserve">  ~ changed  code-review (instructions)   1 file</text>
+<text x="20.0" y="383.0" xml:space="preserve"></text>
+<text x="20.0" y="404.0" xml:space="preserve"><tspan fill="#8F8AFF">$ </tspan><tspan fill="#F1F0FF">agents update --apply</tspan></text>
+<text x="20.0" y="425.0" xml:space="preserve">= repinned  pdf  local:~/team-rules  44daeea -&gt; 5dd2f69</text>
+<text x="20.0" y="446.0" xml:space="preserve">Updated pdf for claude-code, codex.</text>
+<text x="20.0" y="467.0" xml:space="preserve">~ changed  code-review (instructions)  local:~/team-rules  44daeea -&gt; 5dd2f69</text>
+<text x="20.0" y="488.0" xml:space="preserve">= repinned  commits (instructions)  local:~/team-rules  44daeea -&gt; 5dd2f69</text>
+<text x="20.0" y="509.0" xml:space="preserve">AGENTS.md (claude-code, codex)</text>
+<text x="20.0" y="530.0" xml:space="preserve">--- a/AGENTS.md</text>
+<text x="20.0" y="551.0" xml:space="preserve">+++ b/AGENTS.md</text>
+<text x="20.0" y="572.0" xml:space="preserve">@@ -2,7 +2,7 @@</text>
+<text x="20.0" y="593.0" xml:space="preserve"> # Code review</text>
+<text x="20.0" y="614.0" xml:space="preserve"> </text>
+<text x="20.0" y="635.0" xml:space="preserve"> Check correctness.</text>
+<text x="20.0" y="656.0" xml:space="preserve">-Review code.</text>
+<text x="20.0" y="677.0" xml:space="preserve">+Review code and tests.</text>
+<text x="20.0" y="698.0" xml:space="preserve"> </text>
+<text x="20.0" y="719.0" xml:space="preserve"> # Commits</text>
+<text x="20.0" y="740.0" xml:space="preserve"> </text>
+<text x="20.0" y="761.0" xml:space="preserve">Updated AGENTS.md.</text>
+</g>
+</svg>

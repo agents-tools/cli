@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="Documentation/Assets/Logo.png" width="160" alt="agents logo">
+  <a href="https://github.com/agents-tools/cli">
+    <img src="Documentation/Assets/Logo.png" width="160" alt="agents logo">
+  </a>
 </p>
 
 <h1 align="center">agents</h1>
@@ -10,27 +12,49 @@
 
 <p align="center">
   <a href="https://github.com/agents-tools/cli/actions/workflows/ci.yml"><img src="https://github.com/agents-tools/cli/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI"></a>
-  <img src="https://img.shields.io/badge/Swift-6.3%2B-F05138" alt="Swift 6.3+">
-  <img src="https://img.shields.io/badge/platforms-macOS%2013%2B-lightgrey" alt="Platforms: macOS 13+">
+  <a href="Package.swift"><img src="https://img.shields.io/badge/Swift-6.3%2B-F05138" alt="Swift 6.3+"></a>
+  <a href="Package.swift"><img src="https://img.shields.io/badge/platforms-macOS%2013%2B-lightgrey" alt="Platforms: macOS 13+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
 </p>
 
-`agents` manages agent skills and instructions from declared sources. Declare
-skills and instruction sections once, restore their exact locked content with
-`install`, and preview upstream changes before applying an update. It supports
-Codex, Claude Code, Cursor, Gemini CLI, and OpenCode through
-[agents-tools/core](https://github.com/agents-tools/core).
-
 <p align="center">
-  <img src="Documentation/Assets/Demo.svg" width="781" alt="Terminal session: agents adds the pdf skill and two instruction sections, watches their source, reports an upstream change, and applies it to AGENTS.md">
+  <a href="#overview">Overview</a> ·
+  <a href="#quick-look">Quick look</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#usage">Usage</a> ·
+  <a href="#requirements">Requirements</a> ·
+  <a href="#documentation">Documentation</a> ·
+  <a href="#contributing">Contributing</a> ·
+  <a href="#license">License</a>
 </p>
+
+## Overview
+
+Declare skills and instruction sections once, restore their locked content with
+`install`, and preview upstream changes before applying an update. `agents`
+supports Codex, Claude Code, Cursor, Gemini CLI, and OpenCode through
+[agents-tools/core](https://github.com/agents-tools/core).
 
 The executable owns commands and terminal presentation. Core owns source
 resolution, declarations, locks, discovery, installation, and recovery.
 
-## Build and Run
+## Quick look
 
-Requires macOS 13 or later and Swift 6.3 or later. Build from source:
+Install a skill and two instruction sections, watch their source, then apply
+an upstream change:
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"
+            srcset="Documentation/Assets/Demo/Demo-dark.svg">
+    <img src="Documentation/Assets/Demo/Demo-light.svg"
+         alt="Terminal session: install pdf and two instruction sections, watch their source, and apply an upstream change to AGENTS.md.">
+  </picture>
+</p>
+
+## Install
+
+Build from source:
 
 ```sh
 git clone https://github.com/agents-tools/cli.git
@@ -39,8 +63,10 @@ swift build -c release
 .build/release/agents --help
 ```
 
-The examples below use `agents` as the executable name; from this checkout,
-use `.build/release/agents` or `swift run agents`.
+Place `.build/release/agents` in a directory on your `PATH`. To run from this
+checkout, use `.build/release/agents` or `swift run agents`.
+
+## Usage
 
 ```sh
 agents skills add https://github.com/anthropics/skills.git --all --agent codex
@@ -80,10 +106,27 @@ Named ChatGPT prompts are declared in `agents.json` and locked with
 and optional custom content. Updates identify changed prompts to re-paste.
 Top-level `install`, `update`, and `doctor` process skills then instructions,
 including combined `--json` reports.
-See the [CLI reference](Documentation/Reference/CLI.md) for options, state
-locations, JSON schemas, and exit codes.
 
-## Development
+## Requirements
+
+- macOS 13 or later.
+- Swift 6.3 or later to build from source.
+- Git for Git-backed sources.
+
+## Documentation
+
+The [documentation index](Documentation/README.md) links the command reference,
+JSON schemas, and release checklist. Start with the
+[CLI reference](Documentation/Reference/CLI.md) for options, state locations,
+output, and exit codes.
+
+## Contributing
+
+Read the organization's
+[contributing guide](https://github.com/agents-tools/.github/blob/master/CONTRIBUTING.md)
+and follow the [development instructions](#development) below.
+
+### Development
 
 ```sh
 swift build
@@ -112,4 +155,6 @@ to a version range according to the
 [release checklist](Documentation/Reference/Release.md).
 The CLI version is defined once in `Sources/CLI/EntryPoint.swift`.
 
-[Documentation](Documentation/README.md) indexes the command reference and schemas.
+## License
+
+agents is available under the [MIT License](LICENSE).
