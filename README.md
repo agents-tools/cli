@@ -118,7 +118,7 @@ including combined `--json` reports.
 The [documentation index](Documentation/README.md) links the command reference,
 JSON schemas, and release checklist. Start with the
 [CLI reference](Documentation/Reference/CLI.md) for options, state locations,
-output, and exit codes.
+output, and exit codes. See the [changelog](CHANGELOG.md) for user-visible changes.
 
 ## Contributing
 
