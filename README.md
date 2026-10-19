@@ -124,7 +124,8 @@ output, and exit codes. See the [changelog](CHANGELOG.md) for user-visible chang
 
 Read the organization's
 [contributing guide](https://github.com/agents-tools/.github/blob/master/CONTRIBUTING.md)
-and follow the [development instructions](#development) below.
+and [maintenance change flow](https://github.com/agents-tools/.github/blob/master/MAINTENANCE.md#change-flow),
+then follow the repository's [development instructions](#development) below.
 
 ### Development
 
@@ -154,6 +155,29 @@ Keep the local edit inside your authorized development scope. Releases switch
 to a version range according to the
 [release checklist](Documentation/Reference/Release.md).
 The CLI version is defined once in `Sources/CLI/EntryPoint.swift`.
+
+### Continuous integration
+
+The workflows run on branch pushes and pull requests. Source policy also runs
+when a pull-request title changes; CI supports manual dispatch. The required
+contexts are declared in the organization's
+[maintenance standard](https://github.com/agents-tools/.github/blob/master/MAINTENANCE.md#activation-and-required-checks):
+
+| Context | Validation |
+| --- | --- |
+| `policy / policy` | Conventional Commit subjects, PR title, and added-line policy |
+| `validate / swift-package` | Strict format lint, debug build, tests, release build, and diff check |
+| `smoke` | Release executable help, version, and unknown-command exit code 64 in an isolated environment |
+| `presentation / presentation` | Committed terminal demo SVGs match their recording and recipe |
+
+Shared workflows are pinned together to a reviewed full commit SHA. Follow the
+[integration guide](https://github.com/agents-tools/.github/blob/master/Documentation/Reference/WorkflowIntegration.md)
+when updating them, and verify the exact contexts on the candidate's real run.
+The pinned source policy accepts only push and pull-request events; its manual
+dispatch fails because the shared workflow does not support that event.
+For workflow edits, run `actionlint` (or parse every workflow as YAML) alongside
+the development checks above. Weekly Dependabot updates cover Swift packages
+and GitHub Actions.
 
 ## License
 
