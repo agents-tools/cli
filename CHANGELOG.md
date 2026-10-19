@@ -6,6 +6,16 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 
 ## Unreleased
 
+### Fixed
+
+- Sources accept typed selectors, as in
+  `agents skills add larksuite/cli@from:1.0.0@skill:lark-base`: `@branch:`,
+  `@ref:`, `@revision:`, `@exact:`, `@from:`, `@minor:`, `@path:`, and
+  `@skill:`.
+- Adding a source whose last path component another source already uses, such
+  as a second `…/skills` repository, declares it under a prefixed alias like
+  `anthropics-skills` instead of failing.
+
 ## [0.1.0] - 2026-10-19
 
 The first release of `agents`, built on agents-tools/core 0.1.0.
