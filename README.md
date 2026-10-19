@@ -7,7 +7,7 @@
 <h1 align="center">agents</h1>
 
 <p align="center">
-  A package manager for agent skills and instructions.
+  Install, lock and update agent skills and instructions.
 </p>
 
 <p align="center">
