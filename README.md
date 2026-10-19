@@ -158,9 +158,9 @@ The CLI version is defined once in `Sources/CLI/EntryPoint.swift`.
 
 ### Continuous integration
 
-The workflows run on branch pushes and pull requests. Source policy also runs
-when a pull-request title changes; CI supports manual dispatch. The required
-contexts are declared in the organization's
+The workflows run on branch pushes, pull requests, and manual dispatch. Source
+policy also runs when a pull-request title changes. The required contexts are
+declared in the organization's
 [maintenance standard](https://github.com/agents-tools/.github/blob/master/MAINTENANCE.md#activation-and-required-checks):
 
 | Context | Validation |
@@ -173,8 +173,6 @@ contexts are declared in the organization's
 Shared workflows are pinned together to a reviewed full commit SHA. Follow the
 [integration guide](https://github.com/agents-tools/.github/blob/master/Documentation/Reference/WorkflowIntegration.md)
 when updating them, and verify the exact contexts on the candidate's real run.
-The pinned source policy accepts only push and pull-request events; its manual
-dispatch fails because the shared workflow does not support that event.
 For workflow edits, run `actionlint` (or parse every workflow as YAML) alongside
 the development checks above. Weekly Dependabot updates cover Swift packages
 and GitHub Actions.
