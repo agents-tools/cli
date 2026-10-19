@@ -30,7 +30,11 @@ struct AddInstructions: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "add", abstract: "Declare and install instruction sections from a source.")
 
-  @Argument(help: "Git URL, local Git directory, or declared source alias.") var source: String
+  @Argument(
+    help:
+      "Git URL, local Git directory, or declared source alias, optionally followed by selectors such as @branch:main."
+  )
+  var source: String
   @Argument(
     help:
       "Sections to add in order. Omit to add the source's only section, or to list the choices when it has several."

@@ -117,6 +117,34 @@ Requirement options on add map directly to declaration forms:
 Choose one requirement form; `--to` requires `--from`. With no requirement,
 core uses the latest version tag or the default branch if there are no tags.
 
+A source can end in typed selectors instead of options. A selector starts at
+an `@` followed by one of these labels and `:`, so SSH locations such as
+`git@host:owner/repo` keep their `@`:
+
+| Selector | Same as |
+| --- | --- |
+| `@branch:main` | `--branch main` |
+| `@ref:v1.2.3` | `--revision v1.2.3`: any branch, tag, or commit |
+| `@revision:<rev>` | `--revision <rev>` |
+| `@exact:1.2.3` | `--exact 1.2.3` |
+| `@from:1.2.3` | `--from 1.2.3` |
+| `@minor:1.2.3` | `--up-to-next-minor-from 1.2.3` |
+| `@path:<subdir>` | `--path <subdir>` |
+| `@skill:<name>` | one skill name after the source |
+
+`agents skills add larksuite/cli@from:1.0.0@skill:lark-base` is
+`agents skills add larksuite/cli lark-base --from 1.0.0`. Use at most one
+requirement selector, one `@path:`, and one `@skill:`; percent-encode an `@`
+inside a value as `%40`. A selector and an option that give the same field must
+agree; both replace the branch and path of a hosted tree URL. `agents.json`
+stores the structured fields, and the alias comes from the location.
+`instructions add` and `watch add` accept requirement and path selectors;
+`@skill:` applies to `skills add` and `skills list <source>`.
+
+A source added by location keeps the alias that already declares it, or takes
+its last path component. When another source holds that alias, preceding
+components are prefixed, as in `anthropics-skills`, then a number is appended.
+
 `skills list` lists managed lock records, including missing or drifted installs,
 one row per recipient. `skills list <source>` inspects what a source provides.
 Source discovery paths can refer to cache materializations and are not stable
