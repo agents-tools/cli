@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   validate:
-    uses: agents-tools/.github/.github/workflows/swift-package-ci.yml@12f1ad84bd9536d6311f7c3e2c92feef54e34a9e
+    uses: agents-tools/.github/.github/workflows/swift-package-ci.yml@1dd5eae4c47bb6063b951066989aa6c46703b946 # v0.1.0
     with:
       runner: macos-26
       package-directory: .
@@ -35,6 +35,13 @@ jobs:
 
       - name: Release Build
         run: swift build -c release
+
+      - name: Upload Executable
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: executable
+          path: .build/release/agents
+          if-no-files-found: error
 
       - name: Executable Smoke Checks
         run: |
@@ -74,8 +81,9 @@ jobs:
           PY
 
   presentation:
-    uses: agents-tools/.github/.github/workflows/presentation.yml@12f1ad84bd9536d6311f7c3e2c92feef54e34a9e
+    needs: smoke
+    uses: agents-tools/.github/.github/workflows/presentation.yml@1dd5eae4c47bb6063b951066989aa6c46703b946 # v0.1.0
     with:
-      record: Documentation/Assets/Demo/record.json
-      recipe: Documentation/Assets/Demo/recipe.json
-      output-directory: Documentation/Assets/Demo
+      runner: macos-26
+      executable-artifact: executable
+      executable-path: agents

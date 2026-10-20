@@ -1,0 +1,29 @@
+{
+  "title": "agents",
+  "steps": [
+    {
+      "command": "agents skills add ~/team-rules pdf",
+      "output": "Installed pdf for claude-code, codex (link)."
+    },
+    {
+      "command": "agents instructions add ~/team-rules code-review commits",
+      "output": "Added code-review, commits to AGENTS.md (claude-code, codex)."
+    },
+    {
+      "command": "agents watch add ~/team-rules",
+      "output": "Watching local:~/team-rules from f4042e6."
+    },
+    {
+      "command": "git -C ~/team-rules commit -qam \"docs: review tests\"",
+      "output": ""
+    },
+    {
+      "command": "agents watch",
+      "output": "local:~/team-rules  1 commit since f4042e6 (now e21e12f)\n  ~ changed  code-review (instructions)   1 file"
+    },
+    {
+      "command": "agents update --apply",
+      "output": "= repinned  pdf  local:~/team-rules  f4042e6 -> e21e12f\nUpdated pdf for claude-code, codex.\n~ changed  code-review (instructions)  local:~/team-rules  f4042e6 -> e21e12f\n= repinned  commits (instructions)  local:~/team-rules  f4042e6 -> e21e12f\nAGENTS.md (claude-code, codex)\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@ -2,7 +2,7 @@\n # Code review\n \n Check correctness.\n-Review code.\n+Review code and tests.\n \n # Commits\n \nUpdated AGENTS.md."
+    }
+  ]
+}
