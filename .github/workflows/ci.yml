@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   validate:
-    uses: agents-tools/.github/.github/workflows/swift-package-ci.yml@aaddcb297cecb9e9273c807214e547d763cd85b4
+    uses: agents-tools/.github/.github/workflows/swift-package-ci.yml@1dd5eae4c47bb6063b951066989aa6c46703b946
     with:
       runner: macos-26
       package-directory: .
@@ -82,7 +82,7 @@ jobs:
 
   presentation:
     needs: smoke
-    uses: agents-tools/.github/.github/workflows/presentation.yml@aaddcb297cecb9e9273c807214e547d763cd85b4
+    uses: agents-tools/.github/.github/workflows/presentation.yml@1dd5eae4c47bb6063b951066989aa6c46703b946
     with:
       runner: macos-26
       executable-artifact: executable
