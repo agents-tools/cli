@@ -16,4 +16,4 @@ concurrency:
 
 jobs:
   policy:
-    uses: agents-tools/.github/.github/workflows/policy.yml@1dd5eae4c47bb6063b951066989aa6c46703b946
+    uses: agents-tools/.github/.github/workflows/policy.yml@1dd5eae4c47bb6063b951066989aa6c46703b946 # v0.1.0
