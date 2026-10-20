@@ -6,12 +6,14 @@
   update previews, watch status and diffs, installation, and doctor.
 - [Release checklist](Reference/Release.md): prepare and verify release commits,
   publish signed tags, and validate the Homebrew formula.
-- [Terminal demo](Reference/TerminalDemo.md): record the README session and
-  reproduce its light and dark exports.
+- [Presentation reproduction](Reference/TerminalDemo.md): record the README
+  session, reproduce its light and dark exports, and render the social preview.
 - [Logo](../.github/assets/logo/): rendered from the agents icon in
   [agents-tools/.github](https://github.com/agents-tools/.github/blob/master/DESIGN.md).
 - [README terminal assets](../.github/assets/terminal/): the scripted session,
   generated recording, and light/dark SVGs.
+- [Social preview](../.github/assets/social-preview/social-preview.png): the
+  catalog-driven repository card checked by presentation CI.
 
 The package manifest owns target and dependency configuration. Shared lifecycle
 architecture is documented in

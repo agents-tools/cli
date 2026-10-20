@@ -184,7 +184,12 @@ declared in the organization's
 | `policy / policy` | Conventional Commit subjects, PR title, and added-line policy |
 | `validate / swift-package` | Strict format lint, debug build, tests, release build, and diff check |
 | `smoke` | Release executable help, version, and unknown-command exit code 64 in an isolated environment |
-| `presentation / presentation` | Built executable re-records `.github/assets/terminal/script.yml`; recording and both SVGs match byte for byte |
+| `presentation / presentation` | Built executable re-records `.github/assets/terminal/script.yml`; recording, both SVGs and the catalog-driven social preview match byte for byte |
+
+The committed [social preview](.github/assets/social-preview/social-preview.png)
+uses the pinned standard's DESIGN, fonts, catalog and light-page icon. See
+[presentation reproduction](Documentation/Reference/TerminalDemo.md) to regenerate
+the terminal assets and preview.
 
 Shared workflows are pinned together to a reviewed full commit SHA. Follow the
 [integration guide](https://github.com/agents-tools/.github/blob/master/Documentation/Reference/WorkflowIntegration.md)
