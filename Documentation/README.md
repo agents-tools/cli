@@ -8,7 +8,7 @@
   publish signed tags, and validate the Homebrew formula.
 - [Terminal demo](Reference/TerminalDemo.md): record the README session and
   reproduce its light and dark exports.
-- [Assets](Assets/): the logo, rendered from the agents icon in
+- [Logo](../.github/assets/logo/): rendered from the agents icon in
   [agents-tools/.github](https://github.com/agents-tools/.github/blob/master/DESIGN.md).
 - [README terminal assets](../.github/assets/terminal/): the scripted session,
   generated recording, and light/dark SVGs.

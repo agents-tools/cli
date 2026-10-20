@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/agents-tools/cli">
-    <img src="Documentation/Assets/Logo.png" width="160" alt="agents logo">
+    <img src=".github/assets/logo/logo.png" width="160" alt="agents logo">
   </a>
 </p>
 
