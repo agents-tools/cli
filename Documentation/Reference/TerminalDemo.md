@@ -1,49 +1,26 @@
 # Terminal Demo
 
-## Recording the README demo
+Edit [script.yml](../../.github/assets/terminal/script.yml) to change the
+README session's fixture, commands, or expectations. The generated
+[recording](../../.github/assets/terminal/recording.json) and
+[light](../../.github/assets/terminal/terminal-light.svg) and
+[dark](../../.github/assets/terminal/terminal-dark.svg) SVGs live beside it.
 
-From the repository root, build the release executable and run the recorder:
+[CI](../../.github/workflows/ci.yml) builds the release executable in `smoke`,
+then `presentation` re-records the script against that product in an isolated
+environment. The pinned organization standard supplies the toolchain,
+DESIGN.md, and fonts. CI compares the recording and both SVGs byte for byte
+and fails on any difference. The SVGs outline text in Google Sans Code.
 
-```sh
-swift build -c release
-python3 Documentation/Assets/Demo/record.py
-```
+When regeneration succeeds but the files differ, CI uploads the regenerated
+directory as `presentation-terminal`. Download it, review the recording and
+both appearances, and commit its files under `.github/assets/terminal/`.
 
-The recorder creates a local Git source and project under an isolated HOME in
-`.agent/readme-demo/home`. It uses an allowlisted environment, disables inherited
-Git configuration, and allows only Git's local file transport. Fixed fixture
-content, identity, dates, and initial branch reproduce the fixture revisions.
-After installing `pdf` and adding `code-review` and `commits`, it watches the
-source, edits the review instruction to require tests, commits that edit, and
-runs `agents watch` followed by `agents update --apply`. It verifies the installed
-skill and resulting instructions, then removes the fixture, including its HOME.
+## Local regeneration
 
-The [recording](../Assets/Demo/record.json) contains successful commands and their
-output. [Provenance](../Assets/Demo/provenance.json) records the source revision,
-release executable version and digest, toolchain, pinned dependencies, fixture
-inputs and revisions, exit codes, and output normalization. HOME paths become
-`~`; one final newline is removed from each stdout for renderer spacing. The
-private `.agent/readme-demo/receipt.json` retains the exact environment, raw
-stdout, stderr, and replacement counts for local verification. Keep this ignored
-receipt with the recording evidence; do not publish its private paths.
-
-Re-render both themes with the `github-repo-steward` helper, then check them:
-
-```sh
-python3 ~/.claude/skills/github-repo-steward/scripts/render_terminal.py \
-  --record Documentation/Assets/Demo/record.json \
-  --spec Documentation/Assets/Demo/recipe.json \
-  --output-dir Documentation/Assets/Demo
-python3 ~/.claude/skills/github-repo-steward/scripts/render_terminal.py \
-  --record Documentation/Assets/Demo/record.json \
-  --spec Documentation/Assets/Demo/recipe.json \
-  --output-dir Documentation/Assets/Demo --check
-```
-
-The [recipe](../Assets/Demo/recipe.json) copies the font and light/dark colors
-from the organization's
-[DESIGN](https://github.com/agents-tools/.github/blob/master/DESIGN.md#presentation)
-and records its revision and digest. Terminal dimensions use the renderer's
-documented defaults because that DESIGN revision does not specify them. Review
-the pinned DESIGN when changing tokens; the renderer does not fetch or check it.
-Inspect both SVGs in a browser before committing the inputs and exports together.
+From a task worktree, build `.build/release/agents` with `swift build -c release`,
+then follow the toolchain reference's [Local regeneration](https://github.com/showxu/skills/blob/1b72bb9e104586267d0fbdd333df80a26fc81cc0/skills/github-readme-design/references/renderers.md#local-regeneration)
+procedure using the package, DESIGN.md, and fonts selected by the standard
+pinned in CI. Keep temporary inputs under ignored `.build/`. Run the terminal
+check and review both SVGs before committing the script, recording, and exports
+together.

@@ -1,0 +1,48 @@
+title: agents
+executable: agents
+files:
+  team-rules/skills/pdf/SKILL.md: |
+    ---
+    name: pdf
+    description: Review PDF documents.
+    ---
+
+    Inspect page sizes, annotations, and extracted text.
+  team-rules/instructions/code-review.md: |
+    # Code review
+
+    Check correctness.
+    Review code.
+  team-rules/instructions/commits.md: |
+    # Commits
+
+    Use clear messages.
+steps:
+  - run: 'git init --quiet --initial-branch=main && git add . && git commit --quiet -m "docs: add team guidance"'
+    cwd: ~/team-rules
+    show: false
+  - run: agents skills add ~/team-rules pdf
+  - run: agents instructions add ~/team-rules code-review commits
+  - run: agents watch add ~/team-rules
+  - write: ~/team-rules/instructions/code-review.md
+    content: |
+      # Code review
+
+      Check correctness.
+      Review code and tests.
+  - run: 'git -C ~/team-rules commit -qam "docs: review tests"'
+  - run: agents watch
+  - run: agents update --apply
+expect:
+  - file: ~/project/AGENTS.md
+    contains: Review code and tests.
+  - file: ~/project/AGENTS.md
+    contains: Use clear messages.
+  - file: ~/project/.agents/skills/pdf/SKILL.md
+    equals: |
+      ---
+      name: pdf
+      description: Review PDF documents.
+      ---
+
+      Inspect page sizes, annotations, and extracted text.

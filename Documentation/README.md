@@ -9,9 +9,9 @@
 - [Terminal demo](Reference/TerminalDemo.md): record the README session and
   reproduce its light and dark exports.
 - [Assets](Assets/): the logo, rendered from the agents icon in
-  [agents-tools/.github](https://github.com/agents-tools/.github/blob/master/DESIGN.md),
-  and the [README terminal demo](Assets/Demo/), including its recorder,
-  structured recording, provenance, presentation recipe, and light/dark SVGs.
+  [agents-tools/.github](https://github.com/agents-tools/.github/blob/master/DESIGN.md).
+- [README terminal assets](../.github/assets/terminal/): the scripted session,
+  generated recording, and light/dark SVGs.
 
 The package manifest owns target and dependency configuration. Shared lifecycle
 architecture is documented in

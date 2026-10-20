@@ -46,8 +46,8 @@ an upstream change:
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)"
-            srcset="Documentation/Assets/Demo/Demo-dark.svg">
-    <img src="Documentation/Assets/Demo/Demo-light.svg"
+            srcset=".github/assets/terminal/terminal-dark.svg">
+    <img src=".github/assets/terminal/terminal-light.svg"
          alt="Terminal session: install pdf and two instruction sections, watch their source, and apply an upstream change to AGENTS.md.">
   </picture>
 </p>
@@ -184,7 +184,7 @@ declared in the organization's
 | `policy / policy` | Conventional Commit subjects, PR title, and added-line policy |
 | `validate / swift-package` | Strict format lint, debug build, tests, release build, and diff check |
 | `smoke` | Release executable help, version, and unknown-command exit code 64 in an isolated environment |
-| `presentation / presentation` | Committed terminal demo SVGs match their recording and recipe |
+| `presentation / presentation` | Built executable re-records `.github/assets/terminal/script.yml`; recording and both SVGs match byte for byte |
 
 Shared workflows are pinned together to a reviewed full commit SHA. Follow the
 [integration guide](https://github.com/agents-tools/.github/blob/master/Documentation/Reference/WorkflowIntegration.md)
