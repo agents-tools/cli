@@ -192,7 +192,7 @@ uses the pinned standard's DESIGN, fonts, catalog and light-page icon. See
 the terminal assets and preview.
 
 Shared workflows are pinned together to a reviewed full commit SHA. Follow the
-[integration guide](https://github.com/agents-tools/.github/blob/master/Documentation/Reference/WorkflowIntegration.md)
+[integration guide](https://github.com/agents-tools/.github/blob/master/docs/reference/workflow-integration.md)
 when updating them, and verify the exact contexts on the candidate's real run.
 For workflow edits, run `actionlint` (or parse every workflow as YAML) alongside
 the development checks above. Weekly Dependabot updates cover Swift packages

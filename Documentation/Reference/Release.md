@@ -12,6 +12,10 @@ and publishing each refuse to run unless the earlier blocks set their markers.
 
 ## Prepare the Candidate
 
+Release timing follows the family [versioning policy](https://github.com/agents-tools/.github/blob/master/VERSIONING.md),
+which defers to the governing delivery workflow. Include the version change and
+changelog entry in the requirement's final delivery candidate.
+
 1. In a task worktree based on current `origin/master`, select a published core
    version. Replace the development `branch: "master"` dependency with a
    minor-bounded range while core is `0.x`, for example:
@@ -27,7 +31,9 @@ and publishing each refuse to run unless the earlier blocks set their markers.
    minor version. Update `BuildInfo.version` in `Sources/CLI/EntryPoint.swift`;
    it is compiled into the binary and works in source archives without Git.
    Tests compare output against this constant, not a duplicate version literal.
-3. Prepare release notes covering changes, fixes, and upgrade steps. Follow the
+3. Move the shipped entries from [Unreleased](../../CHANGELOG.md#unreleased)
+   into a versioned section, retaining Unreleased for subsequent work. Prepare
+   release notes covering changes, fixes, and upgrade steps. Follow the
    organization's [maintenance change flow](https://github.com/agents-tools/.github/blob/master/MAINTENANCE.md#change-flow).
 
 ## Verify the Release Commit
