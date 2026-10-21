@@ -27,7 +27,9 @@ Read `README.md` for purpose, usage, and development commands, then
 - Run the build, test, release build, strict format lint, and diff checks from
   the README before handing off behavior changes.
 - For workflow changes, also run `actionlint` or parse every workflow as YAML.
-  Keep shared callers pinned to the same full commit. Preserve the
+  Keep shared callers pinned to the same full commit. Check the terminal assets
+  and social preview against that standard as described in
+  `Documentation/Reference/TerminalDemo.md`. Preserve the
   [required contexts and validation](README.md#continuous-integration), including
   the member-owned release executable smoke checks, and verify them on a real
   candidate run before changing required-check settings.
