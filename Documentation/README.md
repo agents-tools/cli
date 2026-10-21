@@ -1,5 +1,15 @@
 # Documentation
 
+This directory indexes repository-native documentation for `agents-tools/cli`.
+
+## Areas
+
+- [Architecture](Architecture/README.md): current truth for package structure
+  and documentation placement
+- [Proposals](Proposals/README.md): design-in-progress and open alternatives
+- [Decisions](Decisions/README.md): accepted decisions and rationale
+- [Migrations](Migrations/README.md): transition and cutover records
+- [Archive](Archive/README.md): retired or superseded material kept for record
 - [CLI reference](Reference/CLI.md): shipped commands, options, output, errors,
   state locations, and JSON contracts.
 - [JSON schemas](Reference/Schemas/): machine-readable schemas for list,
