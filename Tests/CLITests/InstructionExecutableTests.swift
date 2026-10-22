@@ -317,10 +317,10 @@ struct InstructionExecutableTests {
       (preview["instructions"] as? [String: Any])?["changedPrompts"] as? [String] == ["weekly"])
     let applied = try fixture.success(["update", "--apply"])
     let skillsIndex = try #require(
-      applied.stdout.range(of: "Updated demo for codex.")?.lowerBound)
+      applied.stdout.range(of: "Updated demo for codex:")?.lowerBound)
     let instructionsIndex = try #require(
       applied.stdout.range(of: "~ changed  canonical-artifacts (instructions)")?.lowerBound)
-    #expect(skillsIndex < instructionsIndex)
+    #expect(instructionsIndex < skillsIndex)
     #expect(applied.stdout.contains("Changed ChatGPT prompt weekly."))
     #expect(try String(contentsOf: skill, encoding: .utf8).contains("Updated skill"))
     #expect(try String(contentsOf: target, encoding: .utf8).contains("Updated section"))
@@ -330,7 +330,7 @@ struct InstructionExecutableTests {
     #expect((steadyInstall["instructions"] as? [String: Any])?["changed"] as? Bool == false)
   }
 
-  @Test func skillApplyCompletionSurvivesInstructionFailure() throws {
+  @Test func combinedPreparationFailureLeavesSkillsUnchanged() throws {
     let fixture = try CLIFixture()
     try fixture.skill("pdf")
     try fixture.instruction()
@@ -342,18 +342,19 @@ struct InstructionExecutableTests {
     try invalid.write(to: target)
     try fixture.skill("pdf", body: "Updated content")
     try fixture.commit()
-    let applied = try fixture.run(["update", "--apply"])
-    #expect(applied.status == 1 && !applied.stderr.isEmpty)
-    #expect(applied.stdout.hasSuffix("Updated pdf for claude-code, codex.\n"))
-    #expect(
-      applied.stdout.components(separatedBy: "Updated pdf for claude-code, codex.\n").count == 2)
-    #expect(!applied.stdout.contains("Updated AGENTS.md."))
-    for path in [".agents/skills/pdf/SKILL.md", ".claude/skills/pdf/SKILL.md"] {
-      #expect(
-        try String(contentsOf: fixture.project.appendingPathComponent(path), encoding: .utf8)
-          .contains("Updated content"))
+    let lock = try Data(contentsOf: fixture.state("agents.resolved"))
+    for arguments in [["update", "--apply"], ["update", "--json"]] {
+      let failed = try fixture.run(arguments)
+      #expect(failed.status == 1 && !failed.stderr.isEmpty)
+      #expect(failed.stdout.isEmpty)
+      for path in [".agents/skills/pdf/SKILL.md", ".claude/skills/pdf/SKILL.md"] {
+        #expect(
+          try String(contentsOf: fixture.project.appendingPathComponent(path), encoding: .utf8)
+            .contains("Original content"))
+      }
+      #expect(try Data(contentsOf: target) == invalid)
+      #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
     }
-    #expect(try Data(contentsOf: target) == invalid)
   }
 
   @Test func instructionDoctorErrorsAndFailedJSON() throws {

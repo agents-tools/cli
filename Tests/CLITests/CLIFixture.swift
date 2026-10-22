@@ -87,6 +87,12 @@ final class CLIFixture {
     ])
   }
 
+  func revision() throws -> String {
+    String(
+      try git(["rev-parse", "HEAD"]).stdout.trimmingCharacters(in: .whitespacesAndNewlines).prefix(
+        7))
+  }
+
   func skill(
     _ name: String = "demo", body: String = "Original content", container: String = "skills"
   ) throws {

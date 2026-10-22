@@ -2,7 +2,7 @@
 
 `agents` manages declared skills and instructions. Resolution, installation,
 state, and recovery operations use `AgentsCore`, `AgentsSkills`, and
-`AgentsInstructions`.
+`AgentsInstructions`; top-level updates use `AgentsUpdates`.
 
 ## Commands
 
@@ -301,8 +301,8 @@ All update commands preview by default, comparing newly resolved declarations
 against disk. `skills update <names…>` limits resolution to named skills;
 `agents update` and unnamed `skills update` reconcile every declared skill,
 including membership changes in `all` selections. `instructions update` resolves
-all declared sections and ChatGPT prompts. Top-level `update` handles skills,
-then instructions.
+all declared sections and ChatGPT prompts. Top-level `update` prepares both
+kinds together and reports one combined preview.
 
 Human output for top-level `update` and `update --apply` includes only changed
 items. When neither kind has changes, they print `No changes.` once. The
@@ -312,12 +312,14 @@ for unchanged runs.
 Human update item lines use `+ new`, `~ changed`, `= repinned`, and `- removed`.
 Repinned means only the pin moved and content is identical. Items sort in that
 order, then by name, with skills before instructions for the same name.
-Top-level previews combine both kinds; `--apply` keeps core's skill-then-instruction
-operation order and sorts within each operation.
+Top-level preview and apply use the same combined ordering.
 Instruction names carry `(instructions)`. Revisions use seven characters;
-instruction versions appear as `1.2.0 (abc1234)`, while skill updates show
-revisions. Item summaries omit hashes. Live edit records show `none` for pins;
-a pinless result with no file differences is reported as changed.
+selected versions for both kinds appear as `1.2.0 (abc1234)`. Versions are absent
+for live edit skills, well-known sources and Git resolutions without a selected
+version tag. Item summaries omit hashes. Skill rows omit the pin part when both
+sides have neither version nor revision, as for live edit links. Otherwise an
+absent side uses `none`. Managed membership determines whether a skill is new,
+changed or removed, even when no files differ.
 
 ```text
 ~ changed  code-review (instructions)  local:~/Developer/team-rules  6c09c94 -> 9661957
@@ -347,9 +349,10 @@ File comparisons use unified line diffs with three lines of context and
 `--- /dev/null`; removed files use `+++ /dev/null`. Missing trailing newlines
 are marked with `\ No newline at end of file`. Empty file creation or removal
 prints only `empty file <path> added` or `empty file <path> removed`. Binary, mode,
-link, and directory changes use the same rendering as watch diffs. Watch diffs
-include executable-mode changes; skill update diffs compare content bytes,
-links, and directories.
+link, and directory changes use the same rendering as watch diffs. Both watch
+and skill update diffs include executable-mode changes. `644` and `755` describe
+the absence or presence of any execute bit, not full POSIX permissions. A
+mode-only change is changed rather than repinned, even when content hashes match.
 
 Skill content differences appear once per skill, using paths relative to its
 root prefixed by its name. Identical changes across installations are combined.
@@ -360,6 +363,8 @@ visible, as do symbolic links within the skill content.
 
 ```text
 ~ changed  pdf  local:~/Developer/team-rules  6c09c94 -> 9661957
+  = unchanged  claude-code (link)  .claude/skills/pdf
+  = unchanged  codex (link)  .agents/skills/pdf
 --- a/pdf/SKILL.md
 +++ b/pdf/SKILL.md
 @@ -6,7 +6,7 @@
@@ -379,23 +384,82 @@ changes print `Recipients of AGENTS.md: codex -> claude-code, codex`, including
 changes with identical file bytes. Each side lists sorted agent IDs; `none`
 means no recipients or no previous lock entry.
 
-`--apply` prints the preview before each core operation writes, followed by
-`Updated <skill> for <recipients>.` for changed skills and `Updated <path>.` for
-changed instruction targets. Removed skill recipients get
-`Removed <skill> for <recipients>.` Skill update and removal completions print
-only for changed results; unchanged skills print no completion. This also
-applies to `skills update --apply`. Skill completions print as soon as the skill
-operation succeeds, before instruction processing. There is no generic success
-banner.
-A preview can become stale; `--apply` resolves again and displays the content
-it will actually write. `--json --apply` is a usage error.
+Skill membership rows list every previous or prospective agent for a changed
+skill, sorted by agent ID. They show `+ added`, `- removed`, `= unchanged`, or
+`~ changed` for an installation-mode change. Each row prints the agent followed
+by its mode in parentheses and the physical installation path. Changed modes
+use `(old mode -> new mode)`; unchanged, added, and removed memberships show
+just their installed mode. Agents can share the same path and still have
+separate membership rows. A missing target on disk does not remove its recorded
+membership.
+
+```text
+~ changed  pdf  local:~/Developer/team-rules  1.2.0 (6c09c94) -> 1.3.0 (9661957)
+  = unchanged  claude-code (copy)  .claude/skills/pdf
+  = unchanged  codex (copy)  .agents/skills/pdf
+mode pdf/run.sh: 644 -> 755
+Updated pdf for claude-code, codex: 1.2.0 (6c09c94) -> 1.3.0 (9661957).
+```
+
+An installation-mode change uses both modes:
+
+```text
+~ changed  pdf  local:~/Developer/team-rules  6c09c94 -> 6c09c94
+  ~ changed  codex (link -> copy)  .agents/skills/pdf
+```
+
+A live edit skill can change recipients without changing physical files:
+
+```text
+~ changed  pdf  local:~/Developer/team-rules
+  = unchanged  claude-code (edit)  .claude/skills/pdf
+  - removed  codex (edit)  .agents/skills/pdf
+  + added  cursor (edit)  .agents/skills/pdf
+Removed pdf for codex.
+Added pdf for cursor.
+Updated pdf for claude-code.
+```
+
+If `agents.resolved` is missing, a note precedes skill items:
+
+```text
+Lock missing: earlier membership is unknown.
++ new  pdf  local:~/Developer/team-rules
+  + added  codex (edit)  .agents/skills/pdf
+```
+
+This reports unrecorded membership, not absent files. An existing live link
+can produce no physical diff, but applying still rejects an entry the scope
+does not manage. Preview does not grant ownership of existing files.
+
+`agents update --apply` prepares skills and instructions under one writer lock,
+prints the combined report once, and applies that exact preparation in one
+transaction. Both kinds and their merged state commit together. It prints
+completion lines only after the combined operation returns successfully.
+Recovery retries the entire preparation and displays its fresh report.
+`No changes.` uses core's combined `hasChanges`, which also covers state-only
+changes such as prompt repins and section ordering.
+
+`skills update --apply` and `instructions update --apply` retain their
+kind-specific operations. Skill completions print one line per skill and outcome:
+`Updated <skill> for <agents>: <old pin> -> <new pin>.`,
+`Added <skill> for <agents>.`, and `Removed <skill> for <agents>.`
+Updated recipients were installed before and remain installed; added recipients
+have new membership. Agent lists are comma-separated and sorted by agent ID.
+Pins use the same version and seven-character revision format as previews.
+When both pins are unavailable, the update line is `Updated <skill> for <agents>.`
+Unchanged skills print no completion. Instruction target
+completions print `Updated <path>.` Changed ChatGPT prompts are named for
+re-pasting after a combined apply. There is no generic success banner.
+A preview can become stale; a separate `--apply` invocation prepares again
+and displays the content it will actually write. `--json --apply` is a usage error.
 
 Completion lines name their content and destinations:
 
 ```text
 Installed pdf for claude-code, codex (link).
 Added code-review, commits to AGENTS.md (claude-code, codex).
-Updated pdf for claude-code, codex.
+Updated pdf for claude-code, codex: 6c09c94 -> 9661957.
 Updated AGENTS.md.
 Removed commits from AGENTS.md.
 Removed pdf for claude-code, codex.
@@ -416,10 +480,16 @@ selection records an exclusion so an update does not reinstall it.
 `skills init [name]` creates a skill directory and `SKILL.md` in the current directory;
 without a name it creates `SKILL.md` directly there. Existing files are errors.
 
-Top-level install and update run one core operation per kind, in order. Each
-kind commits its own transaction; an instruction failure does not roll back a
-completed skill operation. A failing command exits 1 and emits no successful
-JSON report. Recovery retry is scoped to the operation that reported recovery.
+Top-level install runs one core operation per kind, in order. Each kind commits
+its own transaction; an instruction install failure does not roll back a
+completed skill install. Its recovery retry is scoped to the failing operation.
+
+A failed combined update exits 1 and prints no completion or successful JSON
+report. Preparation errors leave both kinds unchanged. Apply errors report
+core's confirmed outcome: no update applied, committed with a
+later failure, or recovery required. A committed outcome calls for inspection
+with `agents doctor` in the same scope; recovery requires an applying operation in the same scope.
+Concurrent external edits can invalidate a preparation and remain untouched.
 
 ## Doctor and State
 
@@ -572,8 +642,17 @@ A healthy doctor report:
 {"schemaVersion":1,"ok":true,"roots":[{"root":"/project","scope":"project","ok":true,"checks":[]}]}
 ```
 
-Top-level update compatibly adds `instructions` to v1 and computes root
-`changed` across both kinds. `skills update` retains its existing shape.
+Top-level update includes `instructions` and root `lockMissing`, and takes
+root `changed` from core's combined report, including state-only changes.
+Both update forms add optional `oldVersion` and `newVersion`, `lockMissing`,
+and `membership` to each skill. Each membership row has `agent`, absolute
+physical `path`, `before` and `after`. Membership states use
+`{"kind":"absent"}` or `{"kind":"installed","mode":"link|copy|edit"}`.
+Rows include unchanged membership and are sorted by agent ID. A missing lock
+means before membership is unrecorded. Regular skill file snapshots add boolean
+`executable`; existing `kind` and `base64` retain their meanings. These additive
+fields retain schema version 1 and are optional in the schema so older reports
+remain valid.
 Doctor checks add `kind: "skills" | "instructions"`; existing fields and IDs
 remain, and instruction IDs use core's diagnostic names. Consumers distinguish
 checks by `(kind, id)` because kinds may use the same ID.

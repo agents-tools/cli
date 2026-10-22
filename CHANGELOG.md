@@ -6,6 +6,21 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 
 ## Unreleased
 
+### Added
+
+- Skill update previews show resolved versions, executable-mode changes and
+  per-agent membership, including added, removed, unchanged and changed install
+  modes. Missing resolved state is identified as unrecorded membership.
+- Skill update completions include available old and new versions. JSON v1
+  previews add version, executable and membership metadata.
+
+### Changed
+
+- `agents update` prepares one combined skill and instruction preview;
+  `--apply` commits that preparation and merged state in one transaction, then
+  prints completions. Failures report the confirmed apply outcome, and recovery
+  retries the whole preparation.
+
 ## [0.1.1] - 2026-10-20
 
 Built on agents-tools/core 0.1.1.
