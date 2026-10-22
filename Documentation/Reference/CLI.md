@@ -316,9 +316,10 @@ Top-level preview and apply use the same combined ordering.
 Instruction names carry `(instructions)`. Revisions use seven characters;
 selected versions for both kinds appear as `1.2.0 (abc1234)`. Versions are absent
 for live edit skills, well-known sources and Git resolutions without a selected
-version tag. Item summaries omit hashes. Live edit records show `none` for pins;
-managed membership determines whether a skill is new, changed or removed,
-even when no files differ.
+version tag. Item summaries omit hashes. Skill rows omit the pin part when both
+sides have neither version nor revision, as for live edit links. Otherwise an
+absent side uses `none`. Managed membership determines whether a skill is new,
+changed or removed, even when no files differ.
 
 ```text
 ~ changed  code-review (instructions)  local:~/Developer/team-rules  6c09c94 -> 9661957
@@ -362,8 +363,8 @@ visible, as do symbolic links within the skill content.
 
 ```text
 ~ changed  pdf  local:~/Developer/team-rules  6c09c94 -> 9661957
-  = unchanged  claude-code  link -> link  .claude/skills/pdf
-  = unchanged  codex  link -> link  .agents/skills/pdf
+  = unchanged  claude-code (link)  .claude/skills/pdf
+  = unchanged  codex (link)  .agents/skills/pdf
 --- a/pdf/SKILL.md
 +++ b/pdf/SKILL.md
 @@ -6,7 +6,7 @@
@@ -385,36 +386,46 @@ means no recipients or no previous lock entry.
 
 Skill membership rows list every previous or prospective agent for a changed
 skill, sorted by agent ID. They show `+ added`, `- removed`, `= unchanged`, or
-`~ changed` for an installation-mode change, with before/after modes and the
-physical installation path. `absent` means no managed membership. Agents can
-share the same path and still have separate membership rows. A missing target
-on disk does not remove its recorded membership.
+`~ changed` for an installation-mode change. Each row prints the agent followed
+by its mode in parentheses and the physical installation path. Changed modes
+use `(old mode -> new mode)`; unchanged, added, and removed memberships show
+just their installed mode. Agents can share the same path and still have
+separate membership rows. A missing target on disk does not remove its recorded
+membership.
 
 ```text
 ~ changed  pdf  local:~/Developer/team-rules  1.2.0 (6c09c94) -> 1.3.0 (9661957)
-  = unchanged  claude-code  copy -> copy  .claude/skills/pdf
-  = unchanged  codex  copy -> copy  .agents/skills/pdf
+  = unchanged  claude-code (copy)  .claude/skills/pdf
+  = unchanged  codex (copy)  .agents/skills/pdf
 mode pdf/run.sh: 644 -> 755
-Updated pdf for claude-code, codex (1.2.0 -> 1.3.0).
+Updated pdf for claude-code, codex: 1.2.0 (6c09c94) -> 1.3.0 (9661957).
+```
+
+An installation-mode change uses both modes:
+
+```text
+~ changed  pdf  local:~/Developer/team-rules  6c09c94 -> 6c09c94
+  ~ changed  codex (link -> copy)  .agents/skills/pdf
 ```
 
 A live edit skill can change recipients without changing physical files:
 
 ```text
-~ changed  pdf  local:~/Developer/team-rules  none -> none
-  = unchanged  claude-code  edit -> edit  .claude/skills/pdf
-  - removed  codex  edit -> absent  .agents/skills/pdf
-  + added  cursor  absent -> edit  .agents/skills/pdf
+~ changed  pdf  local:~/Developer/team-rules
+  = unchanged  claude-code (edit)  .claude/skills/pdf
+  - removed  codex (edit)  .agents/skills/pdf
+  + added  cursor (edit)  .agents/skills/pdf
 Removed pdf for codex.
-Updated pdf for claude-code, cursor.
+Added pdf for cursor.
+Updated pdf for claude-code.
 ```
 
 If `agents.resolved` is missing, a note precedes skill items:
 
 ```text
-Resolved state is missing; prior skill membership is unrecorded.
-+ new  pdf  local:~/Developer/team-rules  none -> none
-  + added  codex  absent -> edit  .agents/skills/pdf
+Lock missing: earlier membership is unknown.
++ new  pdf  local:~/Developer/team-rules
+  + added  codex (edit)  .agents/skills/pdf
 ```
 
 This reports unrecorded membership, not absent files. An existing live link
@@ -430,10 +441,14 @@ Recovery retries the entire preparation and displays its fresh report.
 changes such as prompt repins and section ordering.
 
 `skills update --apply` and `instructions update --apply` retain their
-kind-specific operations. Skill completions print `Updated <skill> for
-<recipients>.` and `Removed <skill> for <recipients>.` for changed results;
-unchanged skills print no completion. Available skill versions append an
-`(old -> new)` suffix, with `none` for an unavailable side. Instruction target
+kind-specific operations. Skill completions print one line per skill and outcome:
+`Updated <skill> for <agents>: <old pin> -> <new pin>.`,
+`Added <skill> for <agents>.`, and `Removed <skill> for <agents>.`
+Updated recipients were installed before and remain installed; added recipients
+have new membership. Agent lists are comma-separated and sorted by agent ID.
+Pins use the same version and seven-character revision format as previews.
+When both pins are unavailable, the update line is `Updated <skill> for <agents>.`
+Unchanged skills print no completion. Instruction target
 completions print `Updated <path>.` Changed ChatGPT prompts are named for
 re-pasting after a combined apply. There is no generic success banner.
 A preview can become stale; a separate `--apply` invocation prepares again
@@ -444,7 +459,7 @@ Completion lines name their content and destinations:
 ```text
 Installed pdf for claude-code, codex (link).
 Added code-review, commits to AGENTS.md (claude-code, codex).
-Updated pdf for claude-code, codex.
+Updated pdf for claude-code, codex: 6c09c94 -> 9661957.
 Updated AGENTS.md.
 Removed commits from AGENTS.md.
 Removed pdf for claude-code, codex.

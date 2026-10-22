@@ -68,7 +68,11 @@ struct HumanExecutableTests {
       preview.contains("AGENTS.md (claude-code, codex)\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@"))
     #expect(!preview.contains("hash:") && !preview.contains("revision:"))
     let applied = try fixture.success(["update", "--apply"]).stdout
-    #expect(applied.components(separatedBy: "Updated pdf for claude-code, codex.\n").count == 2)
+    #expect(
+      applied.components(
+        separatedBy:
+          "Updated pdf for claude-code, codex: \(revision.prefix(7)) -> \(newRevision.prefix(7)).\n"
+      ).count == 2)
     #expect(applied.hasSuffix("Updated AGENTS.md.\n"))
     let removed = try fixture.success(["instructions", "remove", "commits"]).stdout
     #expect(removed.contains("--- a/AGENTS.md\n+++ b/AGENTS.md\n@@"))
@@ -115,14 +119,16 @@ struct HumanExecutableTests {
     try fixture.skill("pdf")
     try fixture.commit()
     try fixture.success(["skills", "add", fixture.source.path, "pdf"])
+    let before = try fixture.revision()
     try fixture.skill("pdf", body: "Updated content")
     try fixture.commit()
+    let after = try fixture.revision()
     for arguments in [["update"], ["update", "--apply"]] {
       let output = try fixture.success(arguments).stdout
       #expect(output.hasPrefix("~ changed  pdf  "))
       #expect(!output.contains("No skill changes.") && !output.contains("No instruction changes."))
       if arguments.contains("--apply") {
-        #expect(output.hasSuffix("Updated pdf for claude-code, codex.\n"))
+        #expect(output.hasSuffix("Updated pdf for claude-code, codex: \(before) -> \(after).\n"))
       }
     }
   }

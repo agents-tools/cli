@@ -21,9 +21,11 @@ struct SkillOutputExecutableTests {
     try fixture.success([
       "skills", "add", fixture.source.path, "pdf", "--scope", scope, "--mode", mode,
     ])
+    let before = try fixture.revision()
     try fixture.skill("pdf", body: "Updated content")
     try Data("After\n".utf8).write(to: nested)
     try fixture.commit()
+    let after = try fixture.revision()
     for arguments in [["skills", "update"], ["skills", "update", "--apply"]] {
       let output = try fixture.success(arguments + ["--scope", scope]).stdout
       #expect(output.components(separatedBy: "--- a/pdf/SKILL.md\n").count == 2)
@@ -32,7 +34,7 @@ struct SkillOutputExecutableTests {
       #expect(output.components(separatedBy: "-Original content\n+Updated content\n").count == 2)
       #expect(!output.contains("link pdf:") && !output.contains("cache/"))
       if arguments.contains("--apply") {
-        #expect(output.hasSuffix("Updated pdf for claude-code, codex.\n"))
+        #expect(output.hasSuffix("Updated pdf for claude-code, codex: \(before) -> \(after).\n"))
       }
     }
   }
@@ -42,15 +44,18 @@ struct SkillOutputExecutableTests {
     try fixture.skill("pdf")
     try fixture.commit()
     try fixture.success(["skills", "add", fixture.source.path, "pdf"])
+    let revision = try fixture.revision()
     var previousMode = "link"
     for mode in ["copy", "edit", "link"] {
       try changeSelection(fixture) { $0["mode"] = mode }
       let output = try fixture.success(["skills", "update", "--apply"]).stdout
       #expect(
-        output.contains("  ~ changed  codex  \(previousMode) -> \(mode)  .agents/skills/pdf\n"))
+        output.contains("  ~ changed  codex (\(previousMode) -> \(mode))  .agents/skills/pdf\n"))
       #expect(output.components(separatedBy: "link pdf:").count == 2)
       #expect(!output.contains("--- a/pdf/SKILL.md"))
-      #expect(output.hasSuffix("Updated pdf for claude-code, codex.\n"))
+      let before = previousMode == "edit" ? "none" : revision
+      let after = mode == "edit" ? "none" : revision
+      #expect(output.hasSuffix("Updated pdf for claude-code, codex: \(before) -> \(after).\n"))
       if mode != "copy" { #expect(output.contains(fixture.source.path + "/skills/pdf")) }
       previousMode = mode
     }
@@ -63,15 +68,17 @@ struct SkillOutputExecutableTests {
     try fixture.success(["skills", "add", fixture.source.path, "pdf", "--mode", "copy"])
     try Data("Local Codex content\n".utf8).write(
       to: fixture.project.appendingPathComponent(".agents/skills/pdf/SKILL.md"))
+    let before = try fixture.revision()
     try fixture.skill("pdf", body: "Updated content")
     try fixture.commit()
+    let after = try fixture.revision()
     let output = try fixture.success(["skills", "update", "--apply"]).stdout
     #expect(output.contains("pdf/SKILL.md (claude-code)\n--- a/pdf/SKILL.md"))
     #expect(output.contains("pdf/SKILL.md (codex)\n--- a/pdf/SKILL.md"))
     #expect(output.contains("-Local Codex content\n"))
     #expect(output.contains("-Original content\n"))
     #expect(output.components(separatedBy: "+Updated content\n").count == 3)
-    #expect(output.hasSuffix("Updated pdf for claude-code, codex.\n"))
+    #expect(output.hasSuffix("Updated pdf for claude-code, codex: \(before) -> \(after).\n"))
   }
 
   @Test func updateRemovalsNameRecipients() throws {
@@ -80,10 +87,13 @@ struct SkillOutputExecutableTests {
     try fixture.commit()
     try fixture.success(["skills", "add", fixture.source.path, "pdf"])
     try changeSelection(fixture) { $0["agents"] = ["codex"] }
+    let revision = try fixture.revision()
     let partial = try fixture.success(["skills", "update", "--apply"]).stdout
     #expect(partial.contains("--- a/pdf/SKILL.md\n+++ /dev/null\n"))
     #expect(!partial.contains("link pdf:"))
-    #expect(partial.hasSuffix("Removed pdf for claude-code.\nUpdated pdf for codex.\n"))
+    #expect(
+      partial.hasSuffix(
+        "Removed pdf for claude-code.\nUpdated pdf for codex: \(revision) -> \(revision).\n"))
     var declaration = try fixture.declaration()
     declaration["skills"] = [String: Any]()
     try JSONSerialization.data(withJSONObject: declaration).write(to: fixture.state("agents.json"))
@@ -118,11 +128,13 @@ struct SkillOutputExecutableTests {
     try #require(mkfifo(fifo.path, 0o600) == 0)
     let list = try fixture.run(["skills", "list"])
     #expect(list.status == 1)
+    let before = try fixture.revision()
     try fixture.skill("healthy", body: "Updated content")
     try fixture.commit()
+    let after = try fixture.revision()
     let updated = try fixture.success(["skills", "update", "healthy", "--apply"]).stdout
     #expect(updated.components(separatedBy: "--- a/healthy/SKILL.md\n").count == 2)
-    #expect(updated.hasSuffix("Updated healthy for claude-code, codex.\n"))
+    #expect(updated.hasSuffix("Updated healthy for claude-code, codex: \(before) -> \(after).\n"))
     let removed = try fixture.success(["skills", "remove", "healthy"]).stdout
     #expect(removed == "Removed healthy for claude-code, codex.\n")
   }
@@ -133,10 +145,12 @@ struct SkillOutputExecutableTests {
     try fixture.skill("pdf")
     try fixture.commit()
     try fixture.success(["skills", "add", fixture.source.path, "pdf"])
+    let before = try fixture.revision()
     if command == "update" {
       try fixture.skill("pdf", body: "Updated content")
       try fixture.commit()
     }
+    let after = try fixture.revision()
     let journal = fixture.state("transaction.new")
     try Data("partial journal".utf8).write(to: journal)
     let preview = try fixture.run(["skills", "update"])
@@ -147,7 +161,8 @@ struct SkillOutputExecutableTests {
     #expect(applied.status == 0)
     #expect(applied.stderr == "Recovered interrupted transaction at .agent; retrying once.\n")
     let verb = command == "update" ? "Updated" : "Removed"
-    #expect(applied.stdout.hasSuffix("\(verb) pdf for claude-code, codex.\n"))
+    let pins = command == "update" ? ": \(before) -> \(after)" : ""
+    #expect(applied.stdout.hasSuffix("\(verb) pdf for claude-code, codex\(pins).\n"))
     #expect(!FileManager.default.fileExists(atPath: journal.path))
   }
 

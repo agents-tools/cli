@@ -56,8 +56,7 @@ struct HumanItem {
   let instructions: Bool
   let source: String
   let change: Change
-  let before: String
-  let after: String
+  let pins: String?
 
   init(
     name: String, instructions: Bool = false, source: String,
@@ -68,8 +67,9 @@ struct HumanItem {
     self.name = name
     self.instructions = instructions
     self.source = source
-    before = Self.pin(revision: oldRevision, version: oldVersion)
-    after = Self.pin(revision: newRevision, version: newVersion)
+    pins = Self.pinChange(
+      oldRevision: oldRevision, newRevision: newRevision,
+      oldVersion: oldVersion, newVersion: newVersion)
     if !existed {
       change = .new
     } else if !exists {
@@ -89,6 +89,16 @@ struct HumanItem {
     return revision ?? "none"
   }
 
+  static func pinChange(
+    oldRevision: String?, newRevision: String?, oldVersion: String? = nil, newVersion: String? = nil
+  ) -> String? {
+    guard oldRevision != nil || newRevision != nil || oldVersion != nil || newVersion != nil else {
+      return nil
+    }
+    return
+      "\(pin(revision: oldRevision, version: oldVersion)) -> \(pin(revision: newRevision, version: newVersion))"
+  }
+
   static func ordered(_ items: [HumanItem]) -> [HumanItem] {
     items.sorted {
       ($0.change.rawValue, $0.name, $0.instructions ? 1 : 0, $0.source)
@@ -97,7 +107,10 @@ struct HumanItem {
   }
 
   func render(paths: HumanPaths) -> String {
-    "\(change.label)  \(Terminal.line(name))\(instructions ? " (instructions)" : "")  \(paths.source(source))  \(Terminal.line(before)) -> \(Terminal.line(after))\n"
+    let pins =
+      (pins ?? (instructions ? "none -> none" : nil)).map { "  \(Terminal.line($0))" } ?? ""
+    return
+      "\(change.label)  \(Terminal.line(name))\(instructions ? " (instructions)" : "")  \(paths.source(source))\(pins)\n"
   }
 }
 

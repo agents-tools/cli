@@ -6,32 +6,34 @@ extension Terminal {
   static func skillMembership(
     _ result: UpdateResult, paths: HumanPaths, write: (String) -> Void = Terminal.write
   ) {
-    func mode(_ membership: SkillMembership) -> String {
-      switch membership {
-      case .absent: "absent"
-      case .installed(let mode): mode.rawValue
-      }
-    }
     for row in result.membership {
       let label: String
-      if row.before == row.after {
+      let mode: String
+      switch (row.before, row.after) {
+      case (.absent, .absent):
+        continue
+      case (.installed(let before), .installed(let after)) where before == after:
         label = "= unchanged"
-      } else if row.before == .absent {
+        mode = after.rawValue
+      case (.absent, .installed(let after)):
         label = "+ added"
-      } else if row.after == .absent {
+        mode = after.rawValue
+      case (.installed(let before), .absent):
         label = "- removed"
-      } else {
+        mode = before.rawValue
+      case (.installed(let before), .installed(let after)):
         label = "~ changed"
+        mode = "\(before.rawValue) -> \(after.rawValue)"
       }
       write(
-        "  \(label)  \(row.agent.rawValue)  \(mode(row.before)) -> \(mode(row.after))  \(paths.path(row.path))\n"
+        "  \(label)  \(row.agent.rawValue) (\(mode))  \(paths.path(row.path))\n"
       )
     }
   }
 
   static func missingSkillLock(_ missing: Bool) {
     if missing {
-      write("Resolved state is missing; prior skill membership is unrecorded.\n")
+      write("Lock missing: earlier membership is unknown.\n")
     }
   }
 
@@ -89,16 +91,23 @@ extension Terminal {
   ) {
     for result in results.sorted(by: { $0.skill < $1.skill }) where result.changed {
       let removed = result.membership.filter { $0.after == .absent }.map(\.agent)
-      let installed = result.membership.filter { $0.after != .absent }.map(\.agent)
+      let added = result.membership.filter { $0.before == .absent && $0.after != .absent }.map(
+        \.agent)
+      let updated = result.membership.filter { $0.before != .absent && $0.after != .absent }.map(
+        \.agent)
       if !removed.isEmpty {
-        let version = result.oldVersion.map { " (\(line($0)) -> none)" } ?? ""
-        write("Removed \(line(result.skill)) for \(recipients(removed))\(version).\n")
+        write("Removed \(line(result.skill)) for \(recipients(removed)).\n")
       }
-      if !installed.isEmpty {
-        let versions =
-          result.oldVersion != nil || result.newVersion != nil
-          ? " (\(line(result.oldVersion ?? "none")) -> \(line(result.newVersion ?? "none")))" : ""
-        write("Updated \(line(result.skill)) for \(recipients(installed))\(versions).\n")
+      if !added.isEmpty {
+        write("Added \(line(result.skill)) for \(recipients(added)).\n")
+      }
+      if !updated.isEmpty {
+        let pins =
+          HumanItem.pinChange(
+            oldRevision: result.oldRevision, newRevision: result.newRevision,
+            oldVersion: result.oldVersion, newVersion: result.newVersion
+          ).map { ": \(line($0))" } ?? ""
+        write("Updated \(line(result.skill)) for \(recipients(updated))\(pins).\n")
       }
     }
   }
