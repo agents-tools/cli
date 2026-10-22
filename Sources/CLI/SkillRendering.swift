@@ -3,28 +3,52 @@ import AgentsSkills
 import Foundation
 
 extension Terminal {
-  static func skillFileDifferences(
-    _ result: UpdateResult, previous: SkillOutputInventory, paths: HumanPaths,
-    write: (String) -> Void = Terminal.write
+  static func skillMembership(
+    _ result: UpdateResult, paths: HumanPaths, write: (String) -> Void = Terminal.write
   ) {
-    let installs = previous.installations.filter { $0.name == result.skill }
-    var roots = Set(installs.map { physicalSkillPath($0.path) })
-    // New targets and unavailable inventories can lack an installation path.
-    // Only infer unambiguous roots, retaining physical paths otherwise.
-    for change in result.changes.sorted(by: { $0.path.count < $1.path.count }) {
-      if !roots.contains(where: { change.path == $0 || change.path.hasPrefix($0 + "/") }),
-        let root = installationRoot(change.path, skill: result.skill, paths: paths)
-      {
-        roots.insert(root)
+    func mode(_ membership: SkillMembership) -> String {
+      switch membership {
+      case .absent: "absent"
+      case .installed(let mode): mode.rawValue
       }
     }
+    for row in result.membership {
+      let label: String
+      if row.before == row.after {
+        label = "= unchanged"
+      } else if row.before == .absent {
+        label = "+ added"
+      } else if row.after == .absent {
+        label = "- removed"
+      } else {
+        label = "~ changed"
+      }
+      write(
+        "  \(label)  \(row.agent.rawValue)  \(mode(row.before)) -> \(mode(row.after))  \(paths.path(row.path))\n"
+      )
+    }
+  }
+
+  static func missingSkillLock(_ missing: Bool) {
+    if missing {
+      write("Resolved state is missing; prior skill membership is unrecorded.\n")
+    }
+  }
+
+  static func skillFileDifferences(
+    _ result: UpdateResult, paths: HumanPaths,
+    write: (String) -> Void = Terminal.write
+  ) {
+    let membership = result.membership
+    let roots = Set(membership.map(\.path))
+    let agents = Set(membership.map(\.agent))
     var files: [SkillDisplayChange] = []
     for change in result.changes {
       let root = roots.filter { change.path == $0 || change.path.hasPrefix($0 + "/") }
         .max { $0.count < $1.count }
-      let recipients = installs.filter { physicalSkillPath($0.path) == root }.map(\.agent)
+      let recipients = membership.filter { $0.path == root }.map(\.agent)
       if change.path == root,
-        isCacheLinkChange(change, result: result, previous: previous, paths: paths)
+        isCacheLinkChange(change, result: result, paths: paths)
       {
         continue
       }
@@ -46,7 +70,7 @@ extension Terminal {
     }
     for file in files.sorted(by: { $0.path < $1.path }) {
       if files.filter({ $0.path == file.path }).count > 1
-        || (!file.agents.isEmpty && file.agents != previous.agents(for: result.skill))
+        || (!file.agents.isEmpty && file.agents != agents)
       {
         let label =
           file.agents.isEmpty
@@ -61,18 +85,20 @@ extension Terminal {
   }
 
   static func updatedSkills(
-    _ results: [UpdateResult], previous: SkillOutputInventory,
-    write: (String) -> Void = Terminal.write
+    _ results: [UpdateResult], write: (String) -> Void = Terminal.write
   ) {
     for result in results.sorted(by: { $0.skill < $1.skill }) where result.changed {
-      let before = previous.agents(for: result.skill)
-      let after = Set(result.installed.map(\.agent))
-      let removed = before.subtracting(after)
+      let removed = result.membership.filter { $0.after == .absent }.map(\.agent)
+      let installed = result.membership.filter { $0.after != .absent }.map(\.agent)
       if !removed.isEmpty {
-        write("Removed \(line(result.skill)) for \(recipients(Array(removed))).\n")
+        let version = result.oldVersion.map { " (\(line($0)) -> none)" } ?? ""
+        write("Removed \(line(result.skill)) for \(recipients(removed))\(version).\n")
       }
-      if !after.isEmpty {
-        write("Updated \(line(result.skill)) for \(recipients(Array(after))).\n")
+      if !installed.isEmpty {
+        let versions =
+          result.oldVersion != nil || result.newVersion != nil
+          ? " (\(line(result.oldVersion ?? "none")) -> \(line(result.newVersion ?? "none")))" : ""
+        write("Updated \(line(result.skill)) for \(recipients(installed))\(versions).\n")
       }
     }
   }
@@ -84,31 +110,6 @@ extension Terminal {
         write("Removed \(line(name)) for \(recipients(Array(agents))).\n")
       }
     }
-  }
-
-  private static func physicalSkillPath(_ path: String) -> String {
-    let url = URL(fileURLWithPath: path)
-    return url.deletingLastPathComponent().resolvingSymlinksInPath()
-      .appendingPathComponent(url.lastPathComponent).standardizedFileURL.path
-  }
-
-  private static func installationRoot(_ path: String, skill: String, paths: HumanPaths) -> String?
-  {
-    let base =
-      (paths.scope == .project
-      ? paths.environment.projectDirectory : paths.environment.homeDirectory)
-      .resolvingSymlinksInPath().path
-    var url = URL(fileURLWithPath: path)
-    var candidates: [String] = []
-    while url.path != "/" && url.path != base {
-      if url.lastPathComponent == skill
-        && url.deletingLastPathComponent().lastPathComponent == "skills"
-      {
-        candidates.append(url.path)
-      }
-      url.deleteLastPathComponent()
-    }
-    return candidates.count == 1 ? candidates[0] : nil
   }
 
   private static func displayEntry(_ entry: SkillFileEntry?, at path: String, isRoot: Bool)
@@ -138,10 +139,14 @@ extension Terminal {
   }
 
   private static func isCacheLinkChange(
-    _ change: SkillFileChange, result: UpdateResult, previous: SkillOutputInventory,
+    _ change: SkillFileChange, result: UpdateResult,
     paths: HumanPaths
   ) -> Bool {
-    if previous.modes[result.skill]?.values.contains(.edit) == true { return false }
+    if result.membership.contains(where: {
+      $0.before == .installed(mode: .edit) || $0.after == .installed(mode: .edit)
+    }) {
+      return false
+    }
     if change.after != nil && result.newHash == nil && result.newRevision == nil { return false }
     let cache = physicalPath(
       StateStore(scope: paths.scope, environment: paths.environment).cacheDirectory)
@@ -167,7 +172,6 @@ private struct SkillDisplayChange {
 }
 
 struct SkillOutputInventory {
-  var installations: [InstalledSkill] = []
   var modes: [String: [String: InstallMode]] = [:]
 
   func agents(for name: String) -> Set<AgentID> {
@@ -177,14 +181,14 @@ struct SkillOutputInventory {
   static func read(scope: InstallScope, agents: [AgentID]? = nil) -> Self {
     // Mutation owns recovery; withRecovery captures this snapshot again on retry.
     if let installations = try? SkillOperations.listManaged(scope: scope, agents: agents) {
-      var result = Self(installations: installations)
+      var result = Self()
       for install in installations {
         result.modes[install.name, default: [:]][install.agent.rawValue] = install.mode
       }
       return result
     }
     // Inventory hashes installed content, so unrelated unreadable content can fail
-    // it even when a named update or removal succeeds. Locked recipients remain
+    // it even when a removal succeeds. Locked recipients remain
     // useful for presentation; read them without triggering state recovery.
     let url = StateStore(scope: scope).resolvedURL
     guard let metadata = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey]),

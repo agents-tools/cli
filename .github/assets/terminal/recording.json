@@ -23,7 +23,7 @@
     },
     {
       "command": "agents update --apply",
-      "output": "= repinned  pdf  local:~/team-rules  f4042e6 -> e21e12f\nUpdated pdf for claude-code, codex.\n~ changed  code-review (instructions)  local:~/team-rules  f4042e6 -> e21e12f\n= repinned  commits (instructions)  local:~/team-rules  f4042e6 -> e21e12f\nAGENTS.md (claude-code, codex)\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@ -2,7 +2,7 @@\n # Code review\n \n Check correctness.\n-Review code.\n+Review code and tests.\n \n # Commits\n \nUpdated AGENTS.md."
+      "output": "~ changed  code-review (instructions)  local:~/team-rules  f4042e6 -> e21e12f\n= repinned  commits (instructions)  local:~/team-rules  f4042e6 -> e21e12f\n= repinned  pdf  local:~/team-rules  f4042e6 -> e21e12f\n  = unchanged  claude-code  link -> link  .claude/skills/pdf\n  = unchanged  codex  link -> link  .agents/skills/pdf\nAGENTS.md (claude-code, codex)\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@ -2,7 +2,7 @@\n # Code review\n \n Check correctness.\n-Review code.\n+Review code and tests.\n \n # Commits\n \nUpdated pdf for claude-code, codex.\nUpdated AGENTS.md."
     }
   ]
 }

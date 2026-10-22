@@ -109,7 +109,7 @@ enum HumanFileEntry: Equatable {
 
   init(_ entry: SkillFileEntry) {
     switch entry {
-    case .file(let data): self = .file(data)
+    case .file(let data, let executable): self = .file(data, executable: executable)
     case .directory: self = .directory
     case .symbolicLink(let target): self = .symbolicLink(target)
     }

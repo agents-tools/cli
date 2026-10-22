@@ -120,8 +120,9 @@ section list. `agents instructions init <name>` creates `<name>.md`.
 Named ChatGPT prompts are declared in `agents.json` and locked with
 `agents instructions update --apply`; render emits only their locked sections
 and optional custom content. Updates identify changed prompts to re-paste.
-Top-level `install`, `update`, and `doctor` process skills then instructions,
-including combined `--json` reports.
+Top-level `update` previews skills and instructions together and applies them in
+one transaction. `install` and `doctor` process skills then instructions.
+All three support combined `--json` reports.
 
 ## Requirements
 
@@ -157,7 +158,7 @@ Executable tests create local Git sources and isolated homes in the system
 temporary directory. Every child process uses an explicit environment rather
 than inheriting agent or Git configuration. Fixtures are removed after tests.
 
-Core follows `master` during development. To use a local core worktree without
+Core uses a full revision pin during this development change. To use a local core worktree without
 changing the package manifest:
 
 ```sh

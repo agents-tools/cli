@@ -1,6 +1,7 @@
 import AgentsCore
 import AgentsInstructions
 import AgentsSkills
+import AgentsUpdates
 import Foundation
 
 // These DTOs own the CLI schema independently of core's Codable representations.
@@ -73,11 +74,22 @@ struct UpdateReport: Encodable {
   let skills: [UpdateItem]
   let instructions: InstructionChanges?
 
-  init(scope: String, results: [UpdateResult], instructions: InstructionChanges? = nil) {
+  let lockMissing: Bool?
+
+  init(scope: String, results: [UpdateResult]) {
     self.scope = scope
-    changed = results.contains(where: \.changed) || instructions?.changed == true
+    changed = results.contains(where: \.changed)
     skills = results.map(UpdateItem.init)
-    self.instructions = instructions
+    instructions = nil
+    lockMissing = nil
+  }
+
+  init(_ report: CombinedUpdateReport) {
+    scope = report.scope.rawValue
+    changed = report.hasChanges
+    skills = report.skills.map(UpdateItem.init)
+    instructions = InstructionChanges(report.instructions)
+    lockMissing = report.lockMissing
   }
 }
 
@@ -87,6 +99,10 @@ struct UpdateItem: Encodable {
   let changed: Bool
   let oldRevision: String?
   let newRevision: String?
+  let oldVersion: String?
+  let newVersion: String?
+  let lockMissing: Bool
+  let membership: [MembershipChange]
   let oldHash: String?
   let newHash: String?
   let files: [FileChange]
@@ -97,9 +113,43 @@ struct UpdateItem: Encodable {
     changed = result.changed
     oldRevision = result.oldRevision
     newRevision = result.newRevision
+    oldVersion = result.oldVersion
+    newVersion = result.newVersion
+    lockMissing = result.lockMissing
+    membership = result.membership.map(MembershipChange.init)
     oldHash = result.oldHash
     newHash = result.newHash
     files = result.changes.map(FileChange.init)
+  }
+}
+
+struct MembershipChange: Encodable {
+  let agent: String
+  let path: String
+  let before: MembershipState
+  let after: MembershipState
+
+  init(_ change: SkillMembershipChange) {
+    agent = change.agent.rawValue
+    path = change.path
+    before = MembershipState(change.before)
+    after = MembershipState(change.after)
+  }
+}
+
+struct MembershipState: Encodable {
+  let kind: String
+  let mode: String?
+
+  init(_ membership: SkillMembership) {
+    switch membership {
+    case .absent:
+      kind = "absent"
+      mode = nil
+    case .installed(let mode):
+      kind = "installed"
+      self.mode = mode.rawValue
+    }
   }
 }
 
@@ -127,11 +177,17 @@ struct FileEntry: Encodable {
   var destination: String?
   var executable: Bool?
 
+  init(data: Data) {
+    kind = "file"
+    base64 = data.base64EncodedString()
+  }
+
   init(_ entry: SkillFileEntry) {
     switch entry {
-    case .file(let data):
+    case .file(let data, let executable):
       kind = "file"
       base64 = data.base64EncodedString()
+      self.executable = executable
     case .directory:
       kind = "directory"
     case .symbolicLink(let target):

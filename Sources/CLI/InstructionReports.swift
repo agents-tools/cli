@@ -153,8 +153,8 @@ struct InstructionTargetChangeItem: Encodable {
     agentsChanged = change.agentsChanged
     beforeAgents = change.beforeAgents?.map(\.rawValue)
     afterAgents = change.afterAgents.map(\.rawValue)
-    before = change.before.map { FileEntry(.file($0)) }
-    after = change.after.map { FileEntry(.file($0)) }
+    before = change.before.map { FileEntry(data: $0) }
+    after = change.after.map { FileEntry(data: $0) }
     switch change.drift {
     case .clean: drift = "clean"
     case .drifted: drift = "drifted"

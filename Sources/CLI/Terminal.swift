@@ -1,6 +1,7 @@
 import AgentsCore
 import AgentsInstructions
 import AgentsSkills
+import AgentsUpdates
 import ArgumentParser
 import Foundation
 
@@ -72,6 +73,10 @@ enum Terminal {
   }
 
   static func failureRemedy(_ error: Error, command: any ParsableCommand) -> String {
+    if let error = error as? UpdateApplyError {
+      return updateFailureRemedy(
+        error.disposition, underlyingError: error.underlyingError, command: command)
+    }
     let action: String
     switch error {
     case CoreError.transactionRecovered:
@@ -124,6 +129,36 @@ enum Terminal {
     return action
   }
 
+  static func failureMessage(_ error: Error) -> String {
+    guard let error = error as? UpdateApplyError else { return String(describing: error) }
+    return updateFailureMessage(error.disposition, underlyingError: error.underlyingError)
+  }
+
+  static func updateFailureMessage(_ disposition: UpdateApplyDisposition, underlyingError: Error)
+    -> String
+  {
+    let outcome: String
+    switch disposition {
+    case .unchanged: outcome = "Update failed; no update was applied."
+    case .committed: outcome = "Update committed, but a later step failed."
+    case .recoveryRequired: outcome = "Update failed; recovery is required."
+    }
+    return outcome + "\n" + String(describing: underlyingError)
+  }
+
+  static func updateFailureRemedy(
+    _ disposition: UpdateApplyDisposition, underlyingError: Error, command: any ParsableCommand
+  ) -> String {
+    switch disposition {
+    case .unchanged:
+      return failureRemedy(underlyingError, command: command)
+    case .committed:
+      return "run 'agents doctor' in the same scope to inspect the committed update before retrying"
+    case .recoveryRequired:
+      return "run 'agents update --apply' in the same scope to recover and prepare a fresh update"
+    }
+  }
+
   static func json(_ value: some Encodable) throws {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -152,34 +187,33 @@ enum Terminal {
 
   static func skillItems(_ results: [UpdateResult]) -> [HumanItem] {
     results.filter(\.changed).map { result in
-      let live =
-        result.oldHash == nil && result.newHash == nil
-        && result.oldRevision == nil && result.newRevision == nil
       return HumanItem(
         name: result.skill, source: result.sourceIdentity,
-        existed: result.oldHash != nil || result.oldRevision != nil
-          || (live && (result.changes.isEmpty || result.changes.contains { $0.before != nil })),
-        exists: result.newHash != nil || result.newRevision != nil
-          || (live && (result.changes.isEmpty || result.changes.contains { $0.after != nil })),
+        existed: result.membership.contains { $0.before != .absent },
+        exists: result.membership.contains { $0.after != .absent },
         oldRevision: result.oldRevision, newRevision: result.newRevision,
+        oldVersion: result.oldVersion, newVersion: result.newVersion,
         sameContent: result.oldHash != nil && result.oldHash == result.newHash,
-        otherChanges: result.changes.contains {
-          if case .symbolicLink = $0.before, case .symbolicLink = $0.after { return false }
-          return true
-        })
+        otherChanges: result.membership.contains { $0.before != $0.after }
+          || result.changes.contains {
+            if case .symbolicLink = $0.before, case .symbolicLink = $0.after { return false }
+            return true
+          })
     }
   }
 
   static func differences(
-    _ results: [UpdateResult], previous: SkillOutputInventory, paths: HumanPaths = HumanPaths()
+    _ results: [UpdateResult], paths: HumanPaths = HumanPaths()
   ) {
     let items = HumanItem.ordered(skillItems(results))
+    missingSkillLock(results.contains(where: \.lockMissing))
     if items.isEmpty { write("No skill changes.\n") }
     for item in items {
       write(item.render(paths: paths))
       for result in results where result.skill == item.name && result.sourceIdentity == item.source
       {
-        skillFileDifferences(result, previous: previous, paths: paths)
+        skillMembership(result, paths: paths)
+        skillFileDifferences(result, paths: paths)
       }
     }
   }
@@ -225,16 +259,27 @@ enum Terminal {
   }
 
   static func updateDifferences(
-    skills: [UpdateResult], previous: SkillOutputInventory, instructions: InstructionUpdateReport,
-    paths: HumanPaths
+    _ report: CombinedUpdateReport, paths: HumanPaths
   ) {
+    if !report.hasChanges {
+      write("No changes.\n")
+      return
+    }
+    let skills = report.skills
+    let instructions = report.instructions
+    missingSkillLock(report.lockMissing && !skills.isEmpty)
     let items = HumanItem.ordered(skillItems(skills) + instructionItems(instructions))
-    for item in items { write(item.render(paths: paths)) }
+    for item in items {
+      write(item.render(paths: paths))
+      if !item.instructions, let result = skills.first(where: { $0.skill == item.name }) {
+        skillMembership(result, paths: paths)
+      }
+    }
     for item in items where !item.instructions {
       if let result = skills.first(where: {
         $0.skill == item.name && $0.sourceIdentity == item.source
       }) {
-        skillFileDifferences(result, previous: previous, paths: paths)
+        skillFileDifferences(result, paths: paths)
       }
     }
     instructionTargets(instructions.targets, paths: paths)

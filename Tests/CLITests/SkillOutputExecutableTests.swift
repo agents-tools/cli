@@ -42,13 +42,17 @@ struct SkillOutputExecutableTests {
     try fixture.skill("pdf")
     try fixture.commit()
     try fixture.success(["skills", "add", fixture.source.path, "pdf"])
+    var previousMode = "link"
     for mode in ["copy", "edit", "link"] {
       try changeSelection(fixture) { $0["mode"] = mode }
       let output = try fixture.success(["skills", "update", "--apply"]).stdout
+      #expect(
+        output.contains("  ~ changed  codex  \(previousMode) -> \(mode)  .agents/skills/pdf\n"))
       #expect(output.components(separatedBy: "link pdf:").count == 2)
       #expect(!output.contains("--- a/pdf/SKILL.md"))
       #expect(output.hasSuffix("Updated pdf for claude-code, codex.\n"))
       if mode != "copy" { #expect(output.contains(fixture.source.path + "/skills/pdf")) }
+      previousMode = mode
     }
   }
 
