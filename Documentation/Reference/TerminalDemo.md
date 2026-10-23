@@ -6,47 +6,34 @@ README session's fixture, commands, or expectations. The generated
 [light](../../.github/assets/terminal/terminal-light.svg) and
 [dark](../../.github/assets/terminal/terminal-dark.svg) SVGs live beside it.
 
-[CI](../../.github/workflows/ci.yml) builds the release executable in `smoke`,
-then `presentation` re-records the script against that product in an isolated
-environment. The pinned organization standard supplies the toolchain,
-DESIGN.md, fonts and catalog. CI compares the recording, both SVGs and the
-repository social preview byte for byte and fails on any difference. The SVGs
-outline text in Google Sans Code.
+## Recording validation
 
-When regeneration succeeds but the files differ, CI uploads artifact
-`presentation` containing `presentation.tar`, with regenerated `terminal/`
-and/or `social-preview/` directories and file modes preserved. Download it,
-extract it with `tar -xf presentation.tar -C .github/assets`, review the
-recording, both terminal appearances and the preview, and commit the files.
+[CI](../../.github/workflows/ci.yml) calls the shared Swift package workflow
+with [package configuration](../../.github/swift-package.json). Its `demo`
+option selects the `agents` product and uses the default script path,
+`.github/assets/terminal/script.yml`.
 
-## Local regeneration
+The `demo` job builds the release executable and re-records the script in its
+isolated environment. It compares the fresh recording with the committed
+`recording.json` and fails on drift, uploading the regenerated `recording.json`
+for review. Download the recording, review the output changes, and place the
+accepted recording beside the script before rendering the terminal SVGs locally.
+Required checks are exactly `policy / policy` and `validate / result`; the latter
+includes the recording check.
 
-From a task worktree, build `.build/release/agents` with `swift build -c release`,
-then follow the toolchain reference's [Local regeneration](https://github.com/showxu/skills/blob/9e5d7268232b78f5fbef21ccfb9e3a079f2ef7e3/skills/github-readme-design/references/renderers.md#local-regeneration)
-procedure using the package, DESIGN.md, and fonts selected by the standard
-pinned in CI. Keep temporary inputs under ignored `.build/`. Run the terminal
-check and review both SVGs before committing the script, recording, and exports
-together.
+## Local rendering and checks
 
-## Social preview
+Use the github-readme-design toolchain's
+[renderer reference](https://github.com/showxu/skills/blob/master/skills/github-readme-design/references/renderers.md)
+for local recording, rendering, and check commands. Run them from a task
+worktree and keep temporary inputs under ignored `.build/`.
 
-The committed [PNG](../../.github/assets/social-preview/social-preview.png) uses
-`agents-tools/.github`'s DESIGN, fonts and catalog at the presentation workflow pin
-in [CI](../../.github/workflows/ci.yml). The catalog's light-page icon resolves
-to this checkout's `.github/assets/logo/logo.png`.
+Render and check terminal SVGs and the
+[social preview](../../.github/assets/social-preview/social-preview.png) locally
+against [agents-tools/.github](https://github.com/agents-tools/.github)'s
+`DESIGN.md`, `.github/design/fonts`, and `profile/catalog.json`. The catalog
+entry is `cli`; its light-page icon is this checkout's
+`.github/assets/logo/logo.png`. Terminal SVGs outline text in Google Sans Code.
 
-Use `standard_dir` for the standard inputs at that exact revision and
-`toolchain_dir` for the pinned package prepared by the local regeneration
-procedure above, keeping temporary inputs under ignored `.build/`:
-
-```sh
-node "$toolchain_dir/src/cli.ts" social-preview render \
-  --design "$standard_dir/DESIGN.md" --fonts "$standard_dir/.github/design/fonts" \
-  --catalog "$standard_dir/profile/catalog.json" --repository cli \
-  --icon .github/assets/logo/logo.png \
-  --out .github/assets/social-preview/social-preview.png
-node "$toolchain_dir/src/cli.ts" social-preview check \
-  --design "$standard_dir/DESIGN.md" --fonts "$standard_dir/.github/design/fonts" \
-  --catalog "$standard_dir/profile/catalog.json" --repository cli \
-  --icon .github/assets/logo/logo.png --assets .github/assets/social-preview
-```
+Review both terminal appearances and the social preview. Commit accepted
+recording and rendered asset changes with their script or design inputs.

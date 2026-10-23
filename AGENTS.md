@@ -24,12 +24,15 @@ Read `README.md` for purpose, usage, and development commands, then
   Never inherit agent configuration, XDG variables, or Git configuration.
   Create Git fixtures with an explicit initial branch and remove all fixtures.
 - Keep temporary task reports in ignored `.agent/`; SwiftPM owns `.build/`.
-- Run the build, test, release build, strict format lint, and diff checks from
-  the README before handing off behavior changes.
-- For workflow changes, also run `actionlint` or parse every workflow as YAML.
-  Keep shared callers pinned to the same full commit. Check the terminal assets
-  and social preview against that standard as described in
-  `Documentation/Reference/TerminalDemo.md`. Preserve the
-  [required contexts and validation](README.md#continuous-integration), including
-  the member-owned release executable smoke checks, and verify them on a real
-  candidate run before changing required-check settings.
+- Run the build, test, release build, and strict format lint checks from the
+  README before handing off behavior changes.
+- For workflow changes, run `actionlint` on every workflow. Keep shared callers
+  pinned to the same full commit in `agents-tools/github-workflows` and configure
+  package validation in `.github/swift-package.json`. Behavior assertions belong
+  in the package tests.
+- Required checks are exactly `policy / policy` and `validate / result`. Verify
+  them on a real candidate run before changing required-check settings.
+- The demo job re-records `recording.json` and uploads it on drift. Render and
+  check terminal SVGs and the social preview locally with the
+  github-readme-design toolchain against `agents-tools/.github`'s DESIGN, fonts
+  and catalog, following `Documentation/Reference/TerminalDemo.md`.
