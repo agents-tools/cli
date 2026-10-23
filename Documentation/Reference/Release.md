@@ -39,7 +39,7 @@ changelog entry in the requirement's final delivery candidate.
 
 ## Verify the Release Commit
 
-The CLI requires macOS 26 or later and Swift 6.3 or later to build. Shared CI
+The CLI requires macOS 15 or later and Swift 6.3 or later to build. Shared CI
 compiles and tests only with Xcode 26.6 on `macos-26`.
 
 Use a clean task or detached worktree at the exact merged release candidate.
@@ -137,7 +137,7 @@ from the exact downloaded archive bytes. Keep HEAD as the development channel.
 Do not infer the archive digest from Git objects. The formula is named `agents`
 and installs only the `agents` executable.
 
-Match the formula's macOS requirement to the released CLI's minimum (macOS 26).
+Match the formula's macOS requirement to the released CLI's minimum (macOS 15).
 
 Validate the edited formula in a disposable Homebrew environment where the
 formula is not already installed. Set `test_tap` to an unused temporary tap

@@ -20,7 +20,7 @@ Read `README.md` for purpose, usage, and development commands, then
   the user's authorization.
 - Do not embed machine-specific paths or execution state in reusable files.
 - Keep CLI schema types independent of core's encoded representations.
-- Use Swift tools 6.3 and a macOS 26 deployment floor. Shared CI compiles and
+- Use Swift tools 6.3 and a macOS 15 deployment floor. Shared CI compiles and
   tests only with Xcode 26.6 on `macos-26`.
 - Run executable tests with an isolated HOME and an allowlisted environment.
   Never inherit agent configuration, XDG variables, or Git configuration.

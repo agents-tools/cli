@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/agents-tools/cli/actions/workflows/ci.yml"><img src="https://github.com/agents-tools/cli/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI"></a>
   <a href="Package.swift"><img src="https://img.shields.io/badge/Swift-6.3%2B-F05138" alt="Swift 6.3+"></a>
-  <a href="Package.swift"><img src="https://img.shields.io/badge/platforms-macOS%2026%2B-lightgrey" alt="Platforms: macOS 26+"></a>
+  <a href="Package.swift"><img src="https://img.shields.io/badge/platforms-macOS%2015%2B-lightgrey" alt="Platforms: macOS 15+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
 </p>
 
@@ -54,7 +54,7 @@ an upstream change:
 
 ## Install
 
-Development builds and the next release require macOS 26 or later. Earlier
+Development builds and the next release require macOS 15 or later. Earlier
 releases retain their original requirements; the Homebrew formula's requirement
 changes with the release that ships this minimum.
 
@@ -130,7 +130,7 @@ All three support combined `--json` reports.
 
 ## Requirements
 
-- macOS 26 or later.
+- macOS 15 or later.
 - Swift 6.3 or later to build from source.
 - Git for Git-backed sources.
 

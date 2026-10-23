@@ -7,7 +7,7 @@ Use a task worktree, signed Conventional Commits, and the
 [development checks](README.md#development). Push and merge require maintainer
 authorization.
 
-Build with Swift 6.3 or later on macOS 26 or later. Shared CI compiles and tests
+Build with Swift 6.3 or later on macOS 15 or later. Shared CI compiles and tests
 only with Xcode 26.6 on `macos-26`.
 
 Package validation is configured in [.github/swift-package.json](.github/swift-package.json)
