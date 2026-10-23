@@ -42,7 +42,8 @@ changelog entry in the requirement's final delivery candidate.
 Use a clean task or detached worktree at the exact merged release candidate.
 Do not build in the main checkout. Fetch tags, record `release_commit`, and
 confirm it equals `origin/master`. Confirm CI passed on this exact commit,
-including strict format, release build, tests, and smoke checks.
+with required checks `policy / policy` and `validate / result`, including strict
+format, release build, package tests, and the terminal recording check.
 
 Run this local validation to completion independently of development CI runs;
 development CI is not release validation.
@@ -63,7 +64,6 @@ unset checked_commit checked_version verified_tag &&
     --scratch-path .build/release-validation \
     --disable-dependency-cache --manifest-cache none &&
   xcrun swift-format lint --strict --configuration .swift-format --recursive Package.swift Sources Tests &&
-  git diff --check origin/master &&
   .build/release-validation/release/agents --help &&
   checked_commit=$release_commit
 ```

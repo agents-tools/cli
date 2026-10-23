@@ -16,14 +16,19 @@ This directory indexes repository-native documentation for `agents-tools/cli`.
   update previews, watch status and diffs, installation, and doctor.
 - [Release checklist](Reference/Release.md): prepare and verify release commits,
   publish signed tags, and validate the Homebrew formula.
-- [Presentation reproduction](Reference/TerminalDemo.md): record the README
-  session, reproduce its light and dark exports, and render the social preview.
+- [Terminal demo maintenance](Reference/TerminalDemo.md): review CI recording
+  drift and locally render and check terminal SVGs and the social preview.
 - [Logo](../.github/assets/logo/): rendered from the agents icon in
   [agents-tools/.github](https://github.com/agents-tools/.github/blob/master/DESIGN.md).
 - [README terminal assets](../.github/assets/terminal/): the scripted session,
   generated recording, and light/dark SVGs.
 - [Social preview](../.github/assets/social-preview/social-preview.png): the
-  catalog-driven repository card checked by presentation CI.
+  catalog-driven repository card rendered and checked locally.
+
+The required CI checks are `policy / policy` and `validate / result`. The demo
+job re-records `recording.json` and uploads it on drift; local asset rendering
+uses the github-readme-design toolchain and `agents-tools/.github`'s DESIGN,
+fonts and catalog.
 
 The package manifest owns target and dependency configuration. Shared lifecycle
 architecture is documented in

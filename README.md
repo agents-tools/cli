@@ -142,7 +142,8 @@ output, and exit codes. See the [changelog](CHANGELOG.md) for user-visible chang
 Read the organization's
 [contributing guide](https://github.com/agents-tools/.github/blob/master/CONTRIBUTING.md)
 and [maintenance change flow](https://github.com/agents-tools/.github/blob/master/MAINTENANCE.md#change-flow),
-then follow the repository's [development instructions](#development) below.
+then follow the repository's [contributing guide](CONTRIBUTING.md) and
+[development instructions](#development) below.
 
 ### Development
 
@@ -150,8 +151,7 @@ then follow the repository's [development instructions](#development) below.
 swift build
 env -u CODEX_HOME -u CLAUDE_CONFIG_DIR -u XDG_CONFIG_HOME -u XDG_STATE_HOME -u XDG_CACHE_HOME swift test
 swift build -c release
-xcrun swift-format lint --strict --configuration .swift-format --recursive Package.swift Sources Tests
-git diff --check origin/master
+swift format lint --strict --configuration .swift-format --recursive Package.swift Sources Tests
 ```
 
 Executable tests create local Git sources and isolated homes in the system
@@ -183,20 +183,26 @@ declared in the organization's
 | Context | Validation |
 | --- | --- |
 | `policy / policy` | Conventional Commit subjects, PR title, and added-line policy |
-| `validate / swift-package` | Strict format lint, debug build, tests, release build, and diff check |
-| `smoke` | Release executable help, version, and unknown-command exit code 64 in an isolated environment |
-| `presentation / presentation` | Built executable re-records `.github/assets/terminal/script.yml`; recording, both SVGs and the catalog-driven social preview match byte for byte |
+| `validate / result` | Strict format lint, package tests, release build, and terminal recording check |
 
-The committed [social preview](.github/assets/social-preview/social-preview.png)
-uses the pinned standard's DESIGN, fonts, catalog and light-page icon. See
-[presentation reproduction](Documentation/Reference/TerminalDemo.md) to regenerate
-the terminal assets and preview.
+[Package configuration](.github/swift-package.json) selects Xcode 26.6 on
+`macos-26`, whose Swift 6.3 matches the package's minimum tools version.
+Formatting uses the default paths: `Package.swift`, `Sources`, and `Tests`.
+Executable tests cover help, version, and usage errors in an isolated environment.
 
-Shared workflows are pinned together to a reviewed full commit SHA. Follow the
-[integration guide](https://github.com/agents-tools/.github/blob/master/docs/reference/workflow-integration.md)
-when updating them, and verify the exact contexts on the candidate's real run.
-For workflow edits, run `actionlint` (or parse every workflow as YAML) alongside
-the development checks above. Weekly Dependabot updates cover Swift packages
+The shared workflow's `demo` job builds `agents` and re-records
+[script.yml](.github/assets/terminal/script.yml). On drift it uploads the
+regenerated `recording.json` for review. Terminal SVGs and the committed
+[social preview](.github/assets/social-preview/social-preview.png) are rendered
+and checked locally with the github-readme-design toolchain against
+`agents-tools/.github`'s DESIGN, fonts and catalog. See
+[terminal demo maintenance](Documentation/Reference/TerminalDemo.md).
+
+Shared callers use the same full commit SHA from
+[agents-tools/github-workflows](https://github.com/agents-tools/github-workflows#readme).
+For workflow edits, run `actionlint` on every workflow alongside the development
+checks above. Verify the required contexts on a real candidate run before
+changing required-check settings. Weekly Dependabot updates cover Swift packages
 and GitHub Actions.
 
 ## License
