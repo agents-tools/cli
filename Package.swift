@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
   name: "cli",
-  platforms: [.macOS(.v13)],
+  platforms: [.macOS(.v26)],
   products: [.executable(name: "agents", targets: ["CLI"])],
   dependencies: [
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.7.0"),
