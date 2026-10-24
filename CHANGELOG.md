@@ -16,6 +16,9 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 
 ### Changed
 
+- **Breaking**: Require macOS 15 or later, up from macOS 13. Building from source
+  requires Swift 6.3 or later. Upgrade macOS before installing the release that
+  ships this requirement.
 - `agents update` prepares one combined skill and instruction preview;
   `--apply` commits that preparation and merged state in one transaction, then
   prints completions. Failures report the confirmed apply outcome, and recovery

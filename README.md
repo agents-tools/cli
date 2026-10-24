@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/agents-tools/cli/actions/workflows/ci.yml"><img src="https://github.com/agents-tools/cli/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI"></a>
   <a href="Package.swift"><img src="https://img.shields.io/badge/Swift-6.3%2B-F05138" alt="Swift 6.3+"></a>
-  <a href="Package.swift"><img src="https://img.shields.io/badge/platforms-macOS%2013%2B-lightgrey" alt="Platforms: macOS 13+"></a>
+  <a href="Package.swift"><img src="https://img.shields.io/badge/platforms-macOS%2015%2B-lightgrey" alt="Platforms: macOS 15+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
 </p>
 
@@ -53,6 +53,10 @@ an upstream change:
 </p>
 
 ## Install
+
+Development builds and the next release require macOS 15 or later. Earlier
+releases retain their original requirements; the Homebrew formula's requirement
+changes with the release that ships this minimum.
 
 Install the latest release from the Homebrew tap:
 
@@ -126,7 +130,7 @@ All three support combined `--json` reports.
 
 ## Requirements
 
-- macOS 13 or later.
+- macOS 15 or later.
 - Swift 6.3 or later to build from source.
 - Git for Git-backed sources.
 
@@ -185,7 +189,7 @@ declared in the organization's
 | `policy / policy` | Conventional Commit subjects, PR title, and added-line policy |
 | `validate / result` | Strict format lint, package tests, release build, and terminal recording check |
 
-[Package configuration](.github/swift-package.json) selects Xcode 26.6 on
+[Package configuration](.github/swift-package.json) selects only Xcode 26.6 on
 `macos-26`, whose Swift 6.3 matches the package's minimum tools version.
 Formatting uses the default paths: `Package.swift`, `Sources`, and `Tests`.
 Executable tests cover help, version, and usage errors in an isolated environment.
