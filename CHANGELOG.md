@@ -6,6 +6,10 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 
 ## Unreleased
 
+## [0.1.2] - 2026-10-25
+
+Built on agents-tools/core 0.1.2.
+
 ### Added
 
 - Skill update previews show resolved versions, executable-mode changes and
@@ -17,8 +21,8 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 ### Changed
 
 - **Breaking**: Require macOS 15 or later, up from macOS 13. Building from source
-  requires Swift 6.3 or later. Upgrade macOS before installing the release that
-  ships this requirement.
+  requires Swift 6.3 or later. Upgrade to macOS 15 or later before installing
+  0.1.2; source builders must also upgrade to Swift 6.3 or later.
 - `agents update` prepares one combined skill and instruction preview;
   `--apply` commits that preparation and merged state in one transaction, then
   prints completions. Failures report the confirmed apply outcome, and recovery
@@ -59,5 +63,6 @@ The first release of `agents`, built on agents-tools/core 0.1.0.
 - Adding or installing a skill never replaces a directory, file, or link that
   the scope's lock does not manage, such as a hand-written skill.
 
+[0.1.2]: https://github.com/agents-tools/cli/releases/tag/0.1.2
 [0.1.1]: https://github.com/agents-tools/cli/releases/tag/0.1.1
 [0.1.0]: https://github.com/agents-tools/cli/releases/tag/0.1.0

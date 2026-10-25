@@ -54,9 +54,8 @@ an upstream change:
 
 ## Install
 
-Development builds and the next release require macOS 15 or later. Earlier
-releases retain their original requirements; the Homebrew formula's requirement
-changes with the release that ships this minimum.
+Version 0.1.2 and development builds require macOS 15 or later. Earlier
+releases retain their original requirements.
 
 Install the latest release from the Homebrew tap:
 
@@ -162,8 +161,8 @@ Executable tests create local Git sources and isolated homes in the system
 temporary directory. Every child process uses an explicit environment rather
 than inheriting agent or Git configuration. Fixtures are removed after tests.
 
-Core uses a full revision pin during this development change. To use a local core worktree without
-changing the package manifest:
+Core uses the published version range `"0.1.2"..<"0.2.0"`. To use a local core
+worktree without changing the package manifest:
 
 ```sh
 swift package resolve
@@ -172,9 +171,8 @@ swift test
 swift package unedit core
 ```
 
-Keep the local edit inside your authorized development scope. Releases switch
-to a version range according to the
-[release checklist](Documentation/Reference/Release.md).
+Keep the local edit inside your authorized development scope. Follow the
+[release checklist](Documentation/Reference/Release.md) when preparing a release.
 The CLI version is defined once in `Sources/CLI/EntryPoint.swift`.
 
 ### Continuous integration
