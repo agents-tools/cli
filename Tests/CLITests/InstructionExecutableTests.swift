@@ -186,6 +186,27 @@ struct InstructionExecutableTests {
     }
   }
 
+  @Test func updateApplyRewritesStateFromTheEarlierLayout() throws {
+    let fixture = try CLIFixture()
+    try fixture.instruction()
+    try fixture.commit()
+    try fixture.success(["instructions", "add", fixture.source.path, "--agent", "codex"])
+    let files = [fixture.state("agents.json"), fixture.state("agents.resolved")]
+    let standard = try files.map { try Data(contentsOf: $0) }
+    #expect(standard.allSatisfy { !String(decoding: $0, as: UTF8.self).contains("\" : ") })
+    for file in files {
+      let object = try JSONSerialization.jsonObject(with: Data(contentsOf: file))
+      let earlier = try JSONSerialization.data(
+        withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+      #expect(String(decoding: earlier, as: UTF8.self).contains("\" : "))
+      try earlier.write(to: file)
+    }
+    try fixture.success(["instructions", "update", "--apply"])
+    #expect(try files.map { try Data(contentsOf: $0) } == standard)
+    try fixture.success(["instructions", "update", "--apply"])
+    #expect(try files.map { try Data(contentsOf: $0) } == standard)
+  }
+
   @Test func addNamesTheSectionsEachTargetReceives() throws {
     let fixture = try CLIFixture()
     let render = fixture.project.appendingPathComponent("Sources/Render")

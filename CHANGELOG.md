@@ -27,6 +27,9 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
   agents did not generate also stops `install` and `remove`. Removal names an
   edited target it leaves in place, and `add` names the sections each target
   received.
+- `agents.json` and `agents.resolved` are written in Prettier's default JSON
+  layout; `agents instructions update --apply` rewrites files in the earlier
+  layout even when their content is unchanged.
 - **Breaking:** `agents instructions init <name>` creates
   `.agent/instructions/<name>.md` in the current project, with front matter.
 - **Breaking:** update, instruction update and install JSON reports use

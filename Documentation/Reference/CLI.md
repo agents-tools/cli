@@ -540,6 +540,14 @@ current directory and user scope uses HOME.
 | Project | `.agent/agents.json` | `.agent/agents.resolved` | `.agent/cache/` |
 | User | `~/.agents/agents.json` | `~/.agents/agents.resolved` | `~/.agents/cache/` |
 
+A project commits its declaration and lock; the cache stays local. Both files
+are standard JSON in Prettier's default layout, with sorted keys and 80-column
+arrays. Every command that writes state rewrites a file in another layout,
+including the one earlier versions wrote, even when its content is unchanged.
+To normalize a scope in one pass, run `agents instructions update --apply`
+(with `--scope user` for `~/.agents`); it may report no instruction changes
+while rewriting the files.
+
 Project roots are the current directory, not a search up the Git ancestry.
 Core resolves installation locations, including `CODEX_HOME`,
 `CLAUDE_CONFIG_DIR`, and `XDG_CONFIG_HOME` when applicable. User state remains
