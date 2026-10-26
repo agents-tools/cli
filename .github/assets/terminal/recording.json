@@ -11,7 +11,7 @@
     },
     {
       "command": "agents watch add ~/team-rules",
-      "output": "Watching local:~/team-rules from f4042e6."
+      "output": "Watching local:~/team-rules from 6fd753f."
     },
     {
       "command": "git -C ~/team-rules commit -qam \"docs: review tests\"",
@@ -19,11 +19,11 @@
     },
     {
       "command": "agents watch",
-      "output": "local:~/team-rules  1 commit since f4042e6 (now e21e12f)\n  ~ changed  code-review (instructions)   1 file"
+      "output": "local:~/team-rules  1 commit since 6fd753f (now da238b5)\n  ~ changed  code-review (instructions)   1 file"
     },
     {
       "command": "agents update --apply",
-      "output": "~ changed  code-review (instructions)  local:~/team-rules  f4042e6 -> e21e12f\n= repinned  commits (instructions)  local:~/team-rules  f4042e6 -> e21e12f\n= repinned  pdf  local:~/team-rules  f4042e6 -> e21e12f\n  = unchanged  claude-code (link)  .claude/skills/pdf\n  = unchanged  codex (link)  .agents/skills/pdf\nAGENTS.md (claude-code, codex)\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@ -2,7 +2,7 @@\n # Code review\n \n Check correctness.\n-Review code.\n+Review code and tests.\n \n # Commits\n \nUpdated pdf for claude-code, codex: f4042e6 -> e21e12f.\nUpdated AGENTS.md."
+      "output": "~ changed  code-review (instructions)  local:~/team-rules  6fd753f -> da238b5\n= repinned  commits (instructions)  local:~/team-rules  6fd753f -> da238b5\n= repinned  pdf  local:~/team-rules  6fd753f -> da238b5\n  = unchanged  claude-code (link)  .claude/skills/pdf\n  = unchanged  codex (link)  .agents/skills/pdf\nAGENTS.md (claude-code, codex)\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@ -3,7 +3,7 @@\n # Code review\n \n Check correctness.\n-Review code.\n+Review code and tests.\n \n # Commits\n \nUpdated pdf for claude-code, codex: 6fd753f -> da238b5.\nUpdated AGENTS.md."
     }
   ]
 }
