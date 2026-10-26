@@ -112,7 +112,8 @@ enum Terminal {
         action =
           "move what those files need into instructions files, then rerun with --replace to take them over"
       } else if command is Install || command is RemoveInstructions {
-        action = "move what those files need into instructions files, delete them, and retry"
+        action =
+          "move those files aside and retry, then put what they need into instructions files"
       } else {
         action =
           "move what those files need into instructions files, then run 'agents instructions update --apply --replace'"

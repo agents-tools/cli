@@ -160,7 +160,7 @@ struct InstructionExecutableTests {
       #expect(
         refused.status == 1
           && refused.stderr.hasSuffix(
-            "\n  Move what those files need into instructions files, delete them, and retry.\n"
+            "\n  Move those files aside and retry, then put what they need into instructions files.\n"
           ))
       #expect(try Data(contentsOf: target) == handWritten)
     }
