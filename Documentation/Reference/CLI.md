@@ -193,10 +193,11 @@ A file is generated when its first line is the notice; edits below the notice
 are drift, which update and `install` replace. Any other file in a target
 location, unless blank, stops `add`, `update --apply`, `remove` and `install`,
 even when the lock records it; move what it needs into instructions files, then
-`--replace` on `add` or `update --apply` shows its diff and takes it over. `instructions remove <names…>` removes sections from file targets and
+`--replace` on `add` or `update --apply` shows its diff and takes it over. For
+`install`, which restores the lock as it is, delete the file and retry. `instructions remove <names…>` removes sections from file targets and
 ChatGPT prompts. Use `source-alias:name` if a bare name is ambiguous. A target
 left without sections is deleted while it matches its locked rendering; an
-edited one stays in place, no longer managed.
+edited one stays in place and leaves the lock.
 
 `instructions export [--root <dir>…]` maps each locked target to the sections
 it receives, reading the user scope and then each project root (default: the
