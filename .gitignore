@@ -2,4 +2,7 @@
 .swiftpm/
 .DS_Store
 .claude/
-.agent/
+/.agent/*
+!/.agent/instructions/
+!/.agent/agents.json
+!/.agent/agents.resolved
