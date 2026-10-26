@@ -189,10 +189,11 @@ patterns share, which must exist. When a project Claude file exists, core adds
 a managed import of `AGENTS.md` where needed. A local link must resolve to a
 file in the project being written; user targets accept no local links.
 
-Edits to a generated target are drift, which update and `install` replace. A
-file that agents did not generate stops `add` and `update --apply`; move what
-it needs into instructions files, then `--replace` shows its diff and takes it
-over. `instructions remove <names…>` removes sections from file targets and
+A file is generated when its first line is the notice; edits below the notice
+are drift, which update and `install` replace. Any other file in a target
+location, unless blank, stops `add`, `update --apply`, `remove` and `install`,
+even when the lock records it; move what it needs into instructions files, then
+`--replace` on `add` or `update --apply` shows its diff and takes it over. `instructions remove <names…>` removes sections from file targets and
 ChatGPT prompts. Use `source-alias:name` if a bare name is ambiguous. A target
 left without sections is deleted while it matches its locked rendering; an
 edited one stays in place, no longer managed.
@@ -200,8 +201,10 @@ edited one stays in place, no longer managed.
 `instructions export [--root <dir>…]` maps each locked target to the sections
 it receives, reading the user scope and then each project root (default: the
 current directory) without writing. A scope without a lock, with pending
-recovery, or with unreadable state is reported with that status. Own sections
-whose files changed since the lock are listed as unplaced.
+recovery, or with unreadable state is reported with that status. A project
+section is placed from its `paths`, so one whose content is not available
+locally, an own file changed since the lock or a source section missing from
+the cache, is listed as unplaced; `agents install` fills the cache.
 
 Declare named ChatGPT prompts in the scope's `agents.json`, using an existing
 source alias (here `rules`):
@@ -488,8 +491,8 @@ Removed pdf for claude-code, codex.
 Normal instruction adds print only the completion lines. Taking over a file
 with `--replace` first prints `Take over <path>, which agents did not generate`
 and its diff. Instruction removal prints target diffs before its completion
-lines, and `Left <path> in place; agents no longer manages it` for an edited
-target it keeps.
+lines, and `Left <path> in place because it differs from its generated version`
+for an edited target it keeps.
 
 `install` restores skills, then instruction targets, using exact locked pins,
 hashes, modes, and recipients. It does not resolve newer versions and takes no
@@ -520,9 +523,10 @@ Concurrent external edits can invalidate a preparation and remain untouched.
 Doctor reports skills first, then instructions for each root. Skill checks
 include missing installations, drift, broken links, newer matching source
 revisions, and uncommitted source content. Instruction checks include missing
-or drifted targets, own files changed since the lock, links that no longer
-resolve, missing locks, sections at both scopes, Claude forwarding and ancestor
-files, Codex override files and the project size limit, source changes, and
+or drifted targets, locked targets that agents did not generate, own files
+changed since the lock, links that no longer resolve, missing locks, sections at
+both scopes, Claude forwarding (including a Claude file that hides a nested
+`AGENTS.md`) and ancestor files, Codex override files and the project size limit, source changes, and
 invalid configuration. `--root` audits both kinds.
 `--root` accepts multiple directories, either after one option or repeated.
 Each root is an explicit project directory; `--root` cannot combine with user
@@ -610,7 +614,7 @@ Unknown commands and subcommands report `Unknown command '<name>'` and exit
 Command-path validation stops at `--`; leaf command positionals remain arguments.
 
 Doctor's `ok` means there are no error checks; warnings do not make it false.
-Instruction `invalidTarget`, `invalidLink`, `invalidConfiguration`, and
+Instruction `invalidTarget`, `foreignTarget`, `invalidLink`, `invalidConfiguration`, and
 `stateUnavailable` diagnostics and both pending-recovery findings are errors.
 Other instruction diagnostics, including drift and missing targets, are
 warnings. Other skill severities are supplied by core.

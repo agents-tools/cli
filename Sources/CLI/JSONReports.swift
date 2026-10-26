@@ -262,7 +262,7 @@ struct CheckItem: Encodable {
     kind = "instructions"
     id = diagnostic.kind.rawValue
     switch diagnostic.kind {
-    case .invalidTarget, .invalidLink, .invalidConfiguration, .stateUnavailable,
+    case .invalidTarget, .foreignTarget, .invalidLink, .invalidConfiguration, .stateUnavailable,
       .pendingRecovery:
       status = "error"
     default:

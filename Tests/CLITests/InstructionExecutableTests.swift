@@ -136,7 +136,7 @@ struct InstructionExecutableTests {
       instructions["sections"] as? [String] == ["source:canonical-artifacts", "source:other"])
   }
 
-  @Test func editedTargetsFollowTheLock() throws {
+  @Test func editedTargetsFollowTheLockAndHandWrittenOnesNeedReplace() throws {
     let fixture = try CLIFixture()
     try fixture.instruction()
     try fixture.instruction("other", heading: "Other Rules")
@@ -147,24 +147,68 @@ struct InstructionExecutableTests {
     ])
     let target = fixture.project.appendingPathComponent("AGENTS.md")
     let original = try Data(contentsOf: target)
-    let edited = Data("Hand edit.\n".utf8)
+    let edited = Data(
+      String(decoding: original, as: UTF8.self)
+        .replacingOccurrences(of: "Original instructions", with: "Hand edit.").utf8)
     try edited.write(to: target)
     try fixture.success(["install"])
     #expect(try Data(contentsOf: target) == original)
+    let handWritten = Data("Hand-written.\n".utf8)
+    try handWritten.write(to: target)
+    for arguments in [["install"], ["instructions", "remove", "other"]] {
+      let refused = try fixture.run(arguments)
+      #expect(
+        refused.status == 1
+          && refused.stderr.hasSuffix(
+            "\n  Move what those files need into instructions files, then run 'agents instructions update --apply --replace'.\n"
+          ))
+      #expect(try Data(contentsOf: target) == handWritten)
+    }
+    try fixture.success(["instructions", "update", "--apply", "--replace"])
     try edited.write(to: target)
     let removed = try fixture.success(["instructions", "remove", "other"])
     #expect(removed.stdout.contains("-Hand edit."))
     #expect(
       try String(contentsOf: target, encoding: .utf8)
         == generated(["# Canonical Artifacts\n\nOriginal instructions"]))
-    try edited.write(to: target)
-    let kept = try fixture.success(["instructions", "remove", "canonical-artifacts"])
-    #expect(kept.stdout.contains("Left AGENTS.md in place; agents no longer manages it\n"))
-    #expect(try Data(contentsOf: target) == edited)
+    let kept = Data(
+      try String(contentsOf: target, encoding: .utf8)
+        .replacingOccurrences(of: "Original instructions", with: "Hand edit.").utf8)
+    try kept.write(to: target)
+    let left = try fixture.success(["instructions", "remove", "canonical-artifacts"])
+    #expect(
+      left.stdout.contains(
+        "Left AGENTS.md in place because it differs from its generated version\n"))
+    #expect(try Data(contentsOf: target) == kept)
     for arguments in [["install"], ["instructions", "remove", "other"]] {
       let invalid = try fixture.run(arguments + ["--replace"])
       #expect(invalid.status == 64 && invalid.stderr.contains("Unknown option '--replace'"))
     }
+  }
+
+  @Test func addNamesTheSectionsEachTargetReceives() throws {
+    let fixture = try CLIFixture()
+    let render = fixture.project.appendingPathComponent("Sources/Render")
+    try FileManager.default.createDirectory(at: render, withIntermediateDirectories: true)
+    let own = fixture.project.appendingPathComponent(".agent/instructions")
+    try FileManager.default.createDirectory(at: own, withIntermediateDirectories: true)
+    try Data("---\ndescription: Guide.\n---\n# Guide\n\nRead the README.\n".utf8).write(
+      to: own.appendingPathComponent("guide.md"))
+    try Data(
+      "---\ndescription: Rendering.\npaths: [\"Sources/Render/**\"]\n---\n# Rendering\n\nKeep frames stable.\n"
+        .utf8
+    ).write(to: own.appendingPathComponent("render.md"))
+    let added = try fixture.success([
+      "instructions", "add", ".", "render", "guide", "--agent", "codex",
+    ])
+    #expect(
+      added.stdout
+        == "Added guide to AGENTS.md (codex).\nAdded render to Sources/Render/AGENTS.md (codex).\n")
+    #expect(
+      try String(contentsOf: render.appendingPathComponent("AGENTS.md"), encoding: .utf8)
+        == generated([
+          "# Rendering\n\nApplies when working on files matching `Sources/Render/**`.\n\nKeep frames stable."
+        ]))
   }
 
   @Test func updateTakesOverHandWrittenTargetsOnlyWithReplace() throws {
@@ -239,6 +283,8 @@ struct InstructionExecutableTests {
     #expect(section["path"] as? String == ".agent/instructions/guide.md")
     let human = try fixture.success(["instructions", "export"])
     #expect(human.stdout.contains("  AGENTS.md  codex\n    guide  .\n"))
+    let fromHome = try fixture.success(["instructions", "export"], directory: fixture.home)
+    #expect(fromHome.stdout == "~ (user)  no lock\n. (project)  no lock\n")
   }
 
   @Test func recipientOnlyUpdate() throws {

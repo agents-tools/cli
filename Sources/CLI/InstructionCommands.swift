@@ -63,12 +63,21 @@ struct AddInstructions: ParsableCommand {
       Terminal.availableInstructions(outcome.available)
       Terminal.write("Select names with 'agents instructions add <source> <names...>'.\n")
     } else if let result = outcome.result {
-      let selected = names.isEmpty ? outcome.available.map { $0.record.name } : names
+      let selected =
+        names.isEmpty
+        ? outcome.available
+        : names.compactMap { name in outcome.available.first { $0.record.name == name } }
       let locked = try InstructionOperations.listManaged(scope: location.scope)
       for target in result.targets
       where !target.afterAgents.isEmpty && locked.targets[target.target]?.import == nil {
+        // A project section goes only to the target in the directory its paths share.
+        let directory = (target.target as NSString).deletingLastPathComponent
+        let added = selected.filter {
+          location.scope == .user || $0.section.directory == directory
+        }.map { Terminal.line($0.record.name) }
+        if added.isEmpty { continue }
         Terminal.write(
-          "Added \(selected.map(Terminal.line).joined(separator: ", ")) to \(location.paths.path(target.url.path)) (\(Terminal.recipients(target.afterAgents))).\n"
+          "Added \(added.joined(separator: ", ")) to \(location.paths.path(target.url.path)) (\(Terminal.recipients(target.afterAgents))).\n"
         )
       }
     }

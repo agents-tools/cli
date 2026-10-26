@@ -115,6 +115,9 @@ enum Terminal {
         action =
           "move what those files need into instructions files, then run 'agents instructions update --apply --replace'"
       }
+    case InstructionError.invalidLockedBlock:
+      action =
+        "run 'agents instructions update --apply' to regenerate the targets, adding --replace to take over files that agents did not generate"
     case InstructionError.ownChanged:
       action = "run 'agents instructions update --apply' to regenerate targets from the edited file"
     case InstructionError.invalidLinks:
@@ -241,7 +244,9 @@ enum Terminal {
       case .pendingRecovery: status = "  recovery pending"
       case .unavailable(let reason): status = "  unavailable: " + line(reason)
       }
-      write("\(paths.path(mapping.root.path)) (\(mapping.scope.rawValue))\(status)\n")
+      let root = HumanPaths(scope: mapping.scope, environment: paths.environment)
+        .path(mapping.root.path)
+      write("\(root) (\(mapping.scope.rawValue))\(status)\n")
       for target in mapping.targets {
         let imported = target.import.map { "  imports " + line($0) } ?? ""
         write(
@@ -344,7 +349,7 @@ enum Terminal {
         )
       }
       if !target.changed, target.after != nil, target.afterAgents.isEmpty {
-        write("Left \(path) in place; agents no longer manages it\n")
+        write("Left \(path) in place because it differs from its generated version\n")
       }
       if target.changed {
         write(
