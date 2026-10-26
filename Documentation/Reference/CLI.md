@@ -12,11 +12,12 @@ agents skills list [source] [--json]
 agents skills remove <names…>
 agents skills update [names…] [--apply | --json]
 agents skills init [name]
-agents instructions add <source> [names…] [--replace]
-agents instructions list [source] [--json]
+agents instructions add <source|.> [names…] [--replace]
+agents instructions list [source|.] [--json]
 agents instructions remove <names…>
-agents instructions update [--apply | --json]
+agents instructions update [--apply [--replace] | --json]
 agents instructions render chatgpt <prompt>
+agents instructions export [--root <dir>…] [--json]
 agents instructions init <name>
 agents watch
 agents watch add <source> [--path <dir>] [requirement options] [--scope project|user]
@@ -54,15 +55,16 @@ Examples:
 
 | Option | Meaning | Commands |
 | --- | --- | --- |
-| `--scope project\|user` | Where state lives: project (./.agent) or user (~/.agents). Default: project. | All lifecycle and read commands; `init` uses the current directory |
+| `--scope project\|user` | Where state lives: project (./.agent) or user (~/.agents). Default: project. | All lifecycle and read commands except `instructions export`; `init` uses the current directory |
 | `--agent <agent>` | Agent to install for: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: the agents already recorded for this skill or source, else the declaration's agents, else codex and claude-code. | `skills add` |
 | `--agent <agent>` | Limit to this agent: codex, claude-code, cursor, gemini-cli or opencode. Repeat for several. Default: all recipients. | `skills list`, `skills remove`, `doctor` |
 | `--agent <agent>` | Set the scope's entire instruction section list recipients. Repeat for several. Default: recorded instruction agents, else declaration agents, else codex and claude-code. | `instructions add`, `instructions remove`, `instructions update` |
 | `--path <subdir>` | Search this subdirectory of the source. | Both kinds' `add` and `list <source>`, `watch add` |
 | `--full-depth` | Discover recursively beyond conventional skill directories | `skills add`, `skills list <source>` |
 | `--mode link\|copy\|edit` | How to install: link (default), copy, or edit (a live link to a local source). | `skills add` |
-| `--root <dir>…` | Audit these project directories read-only. Repeat for several. | `doctor` |
-| `--json` | Emit a versioned JSON report on stdout | Both kinds' `list`, `install`, `doctor`, all update previews, `watch status`, `watch diff` |
+| `--root <dir>…` | Audit or map these project directories read-only. Repeat for several. | `doctor`, `instructions export` |
+| `--replace` | Take over target files that agents did not generate. | `instructions add`, `instructions update --apply` |
+| `--json` | Emit a versioned JSON report on stdout | Both kinds' `list`, `install`, `doctor`, all update previews, `instructions export`, `watch status`, `watch diff` |
 
 Agents are `codex`, `claude-code`, `cursor`, `gemini-cli`, and `opencode`.
 For instruction recipients, Cursor supports project scope only. ChatGPT is a
@@ -153,35 +155,53 @@ identifiers; use the source ID and skill name for identity.
 ## Instructions
 
 Instruction sources are Git URLs, shorthands, local Git roots, or existing
-source aliases. Discovery reads committed `*.md` files directly inside
-`instructions/` and `.agents/instructions/`, relative to the source root or
-`--path` subdirectory. Local paths must identify the Git root. Instruction add
-supports the same requirement options as skill add; instructions do not have
-installation modes, recursive discovery, or `--all`.
+source aliases. Discovery reads committed `*.md` files, including those in
+subdirectories, inside `instructions/` and `.agents/instructions/`, relative to
+the source root or `--path` subdirectory. A file's name is its
+container-relative path without `.md`, such as `epd/review`. Local paths must
+identify the Git root. Instruction add supports the same requirement options as
+skill add; instructions do not have installation modes or `--all`. The source
+`.` is the project's own `.agent/instructions/`: its files are read from the
+working tree, referenced by bare name, and locked by hash.
+
+Each instructions file starts with front matter holding a required
+`description` and optional `paths`, a list of glob patterns using `*`, `**`
+and `?`. The body starts with one heading at any level, and every other heading
+in it is deeper. `instructions init <name>` creates
+`.agent/instructions/<name>.md` with this skeleton in the current project and
+rejects an existing file.
 
 `instructions add <source> [names…]` appends sections in argument order to the
 scope's ordered list. With no names, one available section is added; several
 available sections are listed for selection without writing declarations or
-locks. `instructions list <source>` lists available sections;
-`instructions list` reports locked sections, physical targets and named prompts,
-including missing targets. Doctor reports their disk status.
+locks. `instructions list <source>` lists available sections with their
+headings and descriptions; `instructions list` reports locked sections,
+physical targets and named prompts, including missing targets. Doctor reports
+their disk status.
 
-Core writes one managed block per physical target and preserves custom content
-around it. The block and its adjacent separating blank lines belong to core;
-removing the block also removes those separators. Project Codex, Claude Code,
-Cursor, and OpenCode share `AGENTS.md`;
-Gemini CLI uses `GEMINI.md`. User targets are the corresponding agent files
-under their configuration directories. Headings shift below an existing title.
-When a project Claude file exists, core adds a managed import of `AGENTS.md`
-where needed. Existing forwarding and custom content are preserved.
+Core generates each target in full: a notice line, then the sections as
+written, in declared order. Project Codex, Claude Code, Cursor, and OpenCode
+share `AGENTS.md`; Gemini CLI uses `GEMINI.md`. User targets are the
+corresponding agent files under their configuration directories. A section
+with `paths` gets an `Applies when working on files matching …` line after its
+first heading; in project scope it goes to the target in the directory its
+patterns share, which must exist. When a project Claude file exists, core adds
+a managed import of `AGENTS.md` where needed. A local link must resolve to a
+file in the project being written; user targets accept no local links.
 
-Conflicting custom sections stop add with differences in the diagnostic.
-`--replace` displays a unified target diff before replacing conflicts.
-`instructions remove <names…>` removes sections from file targets and ChatGPT
-prompts. Use `source-alias:name` if a bare name is ambiguous. Empty managed
-blocks are removed; files created by core are deleted only when no custom
-content remains. `instructions init <name>` creates `<name>.md` in the current
-directory and rejects an existing file.
+Edits to a generated target are drift, which update and `install` replace. A
+file that agents did not generate stops `add` and `update --apply`; move what
+it needs into instructions files, then `--replace` shows its diff and takes it
+over. `instructions remove <names…>` removes sections from file targets and
+ChatGPT prompts. Use `source-alias:name` if a bare name is ambiguous. A target
+left without sections is deleted while it matches its locked rendering; an
+edited one stays in place, no longer managed.
+
+`instructions export [--root <dir>…]` maps each locked target to the sections
+it receives, reading the user scope and then each project root (default: the
+current directory) without writing. A scope without a lock, with pending
+recovery, or with unreadable state is reported with that status. Own sections
+whose files changed since the lock are listed as unplaced.
 
 Declare named ChatGPT prompts in the scope's `agents.json`, using an existing
 source alias (here `rules`):
@@ -465,13 +485,17 @@ Removed commits from AGENTS.md.
 Removed pdf for claude-code, codex.
 ```
 
-Normal instruction adds print only the completion lines. Replacing conflicting
-custom sections with `--replace` prints the conflict diff first. Instruction
-removal prints target diffs before its completion lines.
+Normal instruction adds print only the completion lines. Taking over a file
+with `--replace` first prints `Take over <path>, which agents did not generate`
+and its diff. Instruction removal prints target diffs before its completion
+lines, and `Left <path> in place; agents no longer manages it` for an edited
+target it keeps.
 
 `install` restores skills, then instruction targets, using exact locked pins,
-hashes, modes, recipients, and heading offsets. It does not resolve newer versions and takes no source argument. Unavailable pins or content
-that fails digest verification cause failure.
+hashes, modes, and recipients. It does not resolve newer versions and takes no
+source argument. Unavailable pins, content that fails digest verification, and
+own instructions files changed since the lock cause failure; run
+`agents instructions update --apply` to record an edited own file.
 
 `skills remove` requires names and removes their declarations, files, and lock entries.
 With `--agent`, it removes only those recipients. Removing a member of an `all`
@@ -496,9 +520,10 @@ Concurrent external edits can invalidate a preparation and remain untouched.
 Doctor reports skills first, then instructions for each root. Skill checks
 include missing installations, drift, broken links, newer matching source
 revisions, and uncommitted source content. Instruction checks include missing
-or drifted blocks, adoption/conflicts, missing locks, sections at both scopes,
-Claude forwarding and ancestor files, Codex override files and size limits,
-source changes, and invalid configuration. `--root` audits both kinds.
+or drifted targets, own files changed since the lock, links that no longer
+resolve, missing locks, sections at both scopes, Claude forwarding and ancestor
+files, Codex override files and the project size limit, source changes, and
+invalid configuration. `--root` audits both kinds.
 `--root` accepts multiple directories, either after one option or repeated.
 Each root is an explicit project directory; `--root` cannot combine with user
 scope. A nonexistent root is an error. Without roots, project scope uses the
@@ -585,16 +610,17 @@ Unknown commands and subcommands report `Unknown command '<name>'` and exit
 Command-path validation stops at `--`; leaf command positionals remain arguments.
 
 Doctor's `ok` means there are no error checks; warnings do not make it false.
-Instruction `invalidTarget`, `conflict`, `invalidConfiguration`, and
+Instruction `invalidTarget`, `invalidLink`, `invalidConfiguration`, and
 `stateUnavailable` diagnostics and both pending-recovery findings are errors.
-Other instruction diagnostics, including drift and missing blocks, are
+Other instruction diagnostics, including drift and missing targets, are
 warnings. Other skill severities are supplied by core.
 A failed operation emits no successful JSON report. JSON stdout contains only
 one object and a trailing newline; recovery notices remain on stderr.
 
 ## JSON Schemas
 
-All reports have integer `schemaVersion: 1`. Object keys are sorted. Arrays
+Every report has an integer `schemaVersion`: 2 for the update, instruction
+update and install reports, 1 for the others. Object keys are sorted. Arrays
 follow core's deterministic ordering; instruction section lists preserve
 selection order, targets and prompt names are sorted, and doctor roots retain
 input order.
@@ -619,6 +645,7 @@ schema version. Diagnostic IDs are core-defined strings, not a closed enum.
 | `instructions list --json` | [Managed instructions](Schemas/instructions-installed-list.schema.json) | `schemaVersion`, `kind: "installed"`, `scope`, `sections`, `targets`, `prompts` |
 | `instructions list <source> --json` | [Instruction source](Schemas/instructions-source-list.schema.json) | `schemaVersion`, `kind: "source"`, `scope`, `source`, `sections` |
 | `instructions update --json` | [Instruction update](Schemas/instructions-update.schema.json) | `schemaVersion`, `scope`, `changed`, `instructions` |
+| `instructions export --json` | [Instruction export](Schemas/instructions-export.schema.json) | `schemaVersion`, `scopes` |
 | `watch status --json`, `watch --json` | [Watch status](Schemas/watch-status.schema.json) | `schemaVersion`, `scope`, `sources` |
 | `watch diff --json` | [Watch diff](Schemas/watch-diff.schema.json) | `schemaVersion`, `scope`, `source` |
 | `install --json` | [Install](Schemas/install.schema.json) | `schemaVersion`, `scope`, `skills`, `instructions` |
@@ -633,7 +660,7 @@ An empty installed list:
 An empty skill update preview:
 
 ```json
-{"schemaVersion":1,"scope":"project","changed":false,"skills":[]}
+{"schemaVersion":2,"scope":"project","changed":false,"skills":[]}
 ```
 
 A healthy doctor report:
@@ -650,9 +677,8 @@ physical `path`, `before` and `after`. Membership states use
 `{"kind":"absent"}` or `{"kind":"installed","mode":"link|copy|edit"}`.
 Rows include unchanged membership and are sorted by agent ID. A missing lock
 means before membership is unrecorded. Regular skill file snapshots add boolean
-`executable`; existing `kind` and `base64` retain their meanings. These additive
-fields retain schema version 1 and are optional in the schema so older reports
-remain valid.
+`executable`; existing `kind` and `base64` retain their meanings. These fields
+are optional in the schema.
 Doctor checks add `kind: "skills" | "instructions"`; existing fields and IDs
 remain, and instruction IDs use core's diagnostic names. Consumers distinguish
 checks by `(kind, id)` because kinds may use the same ID.
@@ -664,9 +690,10 @@ The shared [instruction definitions](Schemas/instructions.schema.json) describe:
   `changed` (file bytes differ), `agentsChanged` (recipients differ),
   `beforeAgents` (previous agent IDs, or `null` when no lock entry existed),
   `afterAgents` (planned agent IDs, empty when no longer managed), optional
-  `before`/`after` file snapshots, optional `drift`, `adoptedSections`, and
-  `conflicts` with existing/proposed text and difference. Agent IDs use their
-  raw values in deterministic order.
+  `before`/`after` file snapshots, optional `drift` (`clean`, `drifted` or
+  `missing`, against the previous lock), and `foreign` (applying writes over a
+  file that agents did not generate). Agent IDs use their raw values in
+  deterministic order.
 - `changedPrompts`: prompt names whose content definition changed.
 - `lockMissing`: no scope lock existed when the operation began.
 - `changed`: applying changes the declaration, locked state, or target bytes,
@@ -678,6 +705,13 @@ shape as skill files. `install --json` reports restored skill rows and
 instruction restoration differences; instruction `sections` and
 `changedPrompts` are empty because install never resolves new content.
 The definitions are CLI-owned and do not expose core's encoded lock objects.
+
+Instruction source listings add each file's `level`, `description` and `paths`
+beside its `heading`. The export report lists `scopes`, the user scope first,
+each with `scope`, absolute `root`, `status` (`locked`, `missingLock`,
+`pendingRecovery` or `unavailable` with a `message`), `targets` (each with its
+lock key `target`, sorted `agents`, optional `import` for a Claude forwarding
+file, and the `sections` it receives), `unplaced` sections and `prompts`.
 
 Watch `sources` entries (and the single diff `source` object) include `alias`,
 normalized `source`, `seen`, `current`, optional Git `commitCount`, and `changes`.

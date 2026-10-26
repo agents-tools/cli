@@ -6,6 +6,34 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 
 ## Unreleased
 
+### Added
+
+- `agents instructions add . <names…>` and `agents instructions list .` use the
+  project's own instructions in `.agent/instructions/`.
+- `agents instructions export [--root <dir>…] [--json]` maps the locked targets
+  of the user scope and each project to their sections, without writing.
+- `agents instructions update --apply --replace` takes over target files that
+  agents did not generate.
+- Instruction source listings show each file's heading level, description and
+  `paths`.
+
+### Changed
+
+- **Breaking:** instruction targets are generated in full from instructions
+  files with front matter; custom content around managed blocks and conflict
+  adoption are gone. `--replace` on `instructions add` now takes over files
+  that agents did not generate, after printing
+  `Take over <path>, which agents did not generate` and the diff. Removal names
+  an edited target it leaves in place.
+- **Breaking:** `agents instructions init <name>` creates
+  `.agent/instructions/<name>.md` in the current project, with front matter.
+- **Breaking:** update, instruction update and install JSON reports use
+  `schemaVersion: 2`. Instruction targets drop `adoptedSections` and
+  `conflicts`, add `foreign`, and report `drift` as `clean`, `drifted` or
+  `missing`. Doctor's `invalidLink` diagnostic is an error, and `conflict` is
+  gone.
+- `instructions list --json` no longer reports target `headingOffset`.
+
 ## [0.1.2] - 2026-10-25
 
 Built on agents-tools/core 0.1.2.

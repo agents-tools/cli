@@ -71,12 +71,12 @@ struct UpdateOptions: ParsableArguments {
     }
   }
 
-  func updateInstructions(agents: [AgentID]? = nil) throws
+  func updateInstructions(agents: [AgentID]? = nil, replace: Bool = false) throws
     -> InstructionUpdateReport
   {
     try withRecovery {
       try InstructionOperations.updateInstalled(
-        scope: location.scope, agents: agents, apply: apply,
+        scope: location.scope, agents: agents, apply: apply, replace: replace,
         beforeApply: { result in
           Terminal.instructionDifferences(result, paths: location.paths)
         })

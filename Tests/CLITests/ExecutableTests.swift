@@ -52,7 +52,7 @@ struct ExecutableTests {
       Set(preview.keys) == [
         "schemaVersion", "scope", "changed", "skills", "instructions", "lockMissing",
       ])
-    #expect(preview["schemaVersion"] as? Int == 1 && preview["changed"] as? Bool == true)
+    #expect(preview["schemaVersion"] as? Int == 2 && preview["changed"] as? Bool == true)
     let updates = try #require(preview["skills"] as? [[String: Any]])
     let update = try #require(updates.first)
     #expect(

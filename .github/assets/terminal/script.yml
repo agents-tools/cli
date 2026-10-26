@@ -9,11 +9,17 @@ files:
 
     Inspect page sizes, annotations, and extracted text.
   team-rules/instructions/code-review.md: |
+    ---
+    description: Review checklist.
+    ---
     # Code review
 
     Check correctness.
     Review code.
   team-rules/instructions/commits.md: |
+    ---
+    description: Commit message rules.
+    ---
     # Commits
 
     Use clear messages.
@@ -26,6 +32,9 @@ steps:
   - run: agents watch add ~/team-rules
   - write: ~/team-rules/instructions/code-review.md
     content: |
+      ---
+      description: Review checklist.
+      ---
       # Code review
 
       Check correctness.

@@ -36,10 +36,16 @@ struct InstructionSourceReport: Encodable {
 
 struct AvailableSection: Encodable {
   let heading: String
+  let level: Int
+  let description: String
+  let paths: [String]
   let section: SectionItem
 
   init(_ unit: InstructionUnit) {
     heading = unit.section.heading
+    level = unit.section.level
+    description = unit.section.description
+    paths = unit.section.paths
     section = SectionItem(unit.record)
   }
 }
@@ -67,7 +73,6 @@ struct InstructionListReport: Encodable {
 struct InstructionTargetItem: Encodable {
   let target: String
   let agents: [String]
-  let headingOffset: Int?
   let `import`: String?
   let blockHash: String
   let created: Bool
@@ -75,7 +80,6 @@ struct InstructionTargetItem: Encodable {
   init(target: String, record: LockedTarget) {
     self.target = target
     agents = record.agents.map(\.rawValue).sorted()
-    headingOffset = record.headingOffset
     `import` = record.import
     blockHash = record.blockHash
     created = record.created
@@ -95,7 +99,7 @@ struct PromptItem: Encodable {
 }
 
 struct InstructionPreviewReport: Encodable {
-  let schemaVersion = 1
+  let schemaVersion = 2
   let scope: String
   let changed: Bool
   let instructions: InstructionChanges
@@ -143,8 +147,7 @@ struct InstructionTargetChangeItem: Encodable {
   let before: FileEntry?
   let after: FileEntry?
   let drift: String?
-  let adoptedSections: [String]
-  let conflicts: [InstructionConflictItem]
+  let foreign: Bool
 
   init(_ change: InstructionTargetChange) {
     target = change.target
@@ -158,16 +161,15 @@ struct InstructionTargetChangeItem: Encodable {
     switch change.drift {
     case .clean: drift = "clean"
     case .drifted: drift = "drifted"
-    case .missingBlock: drift = "missingBlock"
+    case .missing: drift = "missing"
     case nil: drift = nil
     }
-    adoptedSections = change.assembly.adoptedSections
-    conflicts = change.assembly.conflicts.map(InstructionConflictItem.init)
+    foreign = change.foreign
   }
 
   private enum CodingKeys: String, CodingKey {
     case target, path, changed, agentsChanged, beforeAgents, afterAgents
-    case before, after, drift, adoptedSections, conflicts
+    case before, after, drift, foreign
   }
 
   func encode(to encoder: any Encoder) throws {
@@ -181,27 +183,66 @@ struct InstructionTargetChangeItem: Encodable {
     try container.encodeIfPresent(before, forKey: .before)
     try container.encodeIfPresent(after, forKey: .after)
     try container.encodeIfPresent(drift, forKey: .drift)
-    try container.encode(adoptedSections, forKey: .adoptedSections)
-    try container.encode(conflicts, forKey: .conflicts)
+    try container.encode(foreign, forKey: .foreign)
   }
 }
 
-struct InstructionConflictItem: Encodable {
-  let section: String
-  let existing: String
-  let proposed: String
-  let difference: String
+struct InstructionExportReport: Encodable {
+  let schemaVersion = 1
+  let scopes: [ScopeMapping]
 
-  init(_ conflict: InstructionConflict) {
-    section = conflict.sectionID
-    existing = conflict.existing
-    proposed = conflict.proposed
-    difference = conflict.difference
+  init(_ mappings: [InstructionMapping]) {
+    scopes = mappings.map(ScopeMapping.init)
   }
+}
+
+struct ScopeMapping: Encodable {
+  let scope: String
+  let root: String
+  let status: String
+  let message: String?
+  let targets: [TargetMapping]
+  let unplaced: [SectionItem]
+  let prompts: [PromptMapping]
+
+  init(_ mapping: InstructionMapping) {
+    scope = mapping.scope.rawValue
+    root = mapping.root.path
+    switch mapping.status {
+    case .locked: (status, message) = ("locked", nil)
+    case .missingLock: (status, message) = ("missingLock", nil)
+    case .pendingRecovery: (status, message) = ("pendingRecovery", nil)
+    case .unavailable(let reason): (status, message) = ("unavailable", reason)
+    }
+    targets = mapping.targets.map(TargetMapping.init)
+    unplaced = mapping.unplaced.map(SectionItem.init)
+    prompts = mapping.prompts.sorted { $0.key < $1.key }.map {
+      PromptMapping(name: $0.key, sections: $0.value.map(SectionItem.init))
+    }
+  }
+}
+
+struct TargetMapping: Encodable {
+  let target: String
+  let agents: [String]
+  let `import`: String?
+  let sections: [SectionItem]
+
+  init(_ target: InstructionMapping.Target) {
+    self.target = target.target
+    agents = target.agents.map(\.rawValue).sorted()
+    `import` = target.import
+    sections = target.sections.map(SectionItem.init)
+  }
+}
+
+struct PromptMapping: Encodable {
+  let name: String
+  let sections: [SectionItem]
 }
 
 struct InstallReport: Encodable {
-  let schemaVersion = 1
+  let schemaVersion = 2
   let scope: String
   let skills: [RestoredSkill]
   let instructions: InstructionChanges

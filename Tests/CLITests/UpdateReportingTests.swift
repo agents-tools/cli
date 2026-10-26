@@ -24,7 +24,7 @@ struct UpdateReportingTests {
     let newRevision = try fixture.git(["rev-parse", "HEAD"]).stdout.trimmingCharacters(
       in: .whitespacesAndNewlines)
     let report = try fixture.success(command + ["--json"]).json()
-    #expect(report["schemaVersion"] as? Int == 1)
+    #expect(report["schemaVersion"] as? Int == 2)
     let skill = try #require((report["skills"] as? [[String: Any]])?.first)
     #expect(skill["oldVersion"] as? String == "1.2.0")
     #expect(skill["newVersion"] as? String == "1.3.0")

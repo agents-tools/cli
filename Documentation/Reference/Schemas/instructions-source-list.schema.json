@@ -26,6 +26,20 @@
           "heading": {
             "type": "string"
           },
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          },
+          "description": {
+            "type": "string"
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "section": {
             "$ref": "instructions.schema.json#/$defs/section"
           }

@@ -1,3 +1,4 @@
+import AgentsInstructions
 import Foundation
 import Testing
 
@@ -14,20 +15,13 @@ struct InstructionExecutableTests {
       scope == "project"
       ? fixture.project.appendingPathComponent("AGENTS.md")
       : fixture.home.appendingPathComponent(".codex/AGENTS.md")
-    try FileManager.default.createDirectory(
-      at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
-    let custom =
-      "# Project Guide\n\nLocal introduction.\n\n## Local Rules\n\nKeep custom content.\n"
-    try Data(custom.utf8).write(to: target)
     try fixture.success(
       [
         "instructions", "add", fixture.source.path, "canonical-artifacts", "--agent", "codex",
         "--branch", "main",
       ] + arguments)
     let original = try String(contentsOf: target, encoding: .utf8)
-    #expect(original.contains("## Canonical Artifacts\n\nOriginal instructions"))
-    #expect(original.hasPrefix("# Project Guide\n\nLocal introduction.\n"))
-    #expect(original.hasSuffix("## Local Rules\n\nKeep custom content.\n"))
+    #expect(original == generated(["# Canonical Artifacts\n\nOriginal instructions"]))
     let list = try fixture.success(["instructions", "list", "--json"] + arguments).json()
     #expect(Set(list.keys) == ["schemaVersion", "kind", "scope", "sections", "targets", "prompts"])
     #expect(list["schemaVersion"] as? Int == 1 && list["kind"] as? String == "installed")
@@ -35,7 +29,6 @@ struct InstructionExecutableTests {
     #expect(sections.count == 1 && sections.first?["name"] as? String == "canonical-artifacts")
     let targets = try #require(list["targets"] as? [[String: Any]])
     #expect(targets.first?["agents"] as? [String] == ["codex"])
-    #expect(targets.first?["created"] as? Bool == false)
     let humanList = try fixture.success(["instructions", "list"] + arguments)
     #expect(humanList.stdout.contains("canonical-artifacts") && humanList.stdout.contains("Target"))
     let drift = original.replacingOccurrences(of: "Original instructions", with: "Manual drift")
@@ -56,12 +49,14 @@ struct InstructionExecutableTests {
     #expect(preview.stdout.contains("Changed ChatGPT prompt weekly."))
     let json = try fixture.success(["instructions", "update", "--json"] + arguments).json()
     #expect(Set(json.keys) == ["schemaVersion", "scope", "changed", "instructions"])
+    #expect(json["schemaVersion"] as? Int == 2)
     let changes = try #require(json["instructions"] as? [String: Any])
     #expect(changes["changedPrompts"] as? [String] == ["weekly"])
     let files = try #require(changes["targets"] as? [[String: Any]])
     let before = try #require(files.first?["before"] as? [String: String])
     #expect(Data(base64Encoded: try #require(before["base64"])) == Data(drift.utf8))
     #expect(files.first?["drift"] as? String == "drifted")
+    #expect(files.first?["foreign"] as? Bool == false)
     #expect(try Data(contentsOf: fixture.state("agents.json", scope: scope)) == declaration)
     #expect(try Data(contentsOf: fixture.state("agents.resolved", scope: scope)) == lock)
     #expect(try Data(contentsOf: target) == Data(drift.utf8))
@@ -72,6 +67,7 @@ struct InstructionExecutableTests {
     #expect(diffIndex < appliedIndex)
     #expect(applied.stdout.contains("Changed ChatGPT prompt weekly."))
     let expected = try Data(contentsOf: target)
+    #expect(expected == Data(generated(["# Canonical Artifacts\n\nUpdated instructions"]).utf8))
     let updatedLock = try Data(contentsOf: fixture.state("agents.resolved", scope: scope))
     try Data(drift.utf8).write(to: target)
     try fixture.success(["install"] + arguments)
@@ -86,11 +82,7 @@ struct InstructionExecutableTests {
     let pinned = try fixture.success(["instructions", "render", "chatgpt", "weekly"] + arguments)
     #expect(pinned.stdout == rendered.stdout)
     try fixture.success(["instructions", "remove", "canonical-artifacts"] + arguments)
-    let remainingCustom = try String(contentsOf: target, encoding: .utf8)
-    // Core owns the blank lines adjacent to the managed block.
-    #expect(
-      remainingCustom
-        == "# Project Guide\n\nLocal introduction.\n## Local Rules\n\nKeep custom content.\n")
+    #expect(!FileManager.default.fileExists(atPath: target.path))
     let empty = try fixture.success(["instructions", "list", "--json"] + arguments).json()
     #expect((empty["sections"] as? [Any])?.isEmpty == true)
     #expect((empty["targets"] as? [Any])?.isEmpty == true)
@@ -100,7 +92,7 @@ struct InstructionExecutableTests {
     #expect(missingPrompt.status == 1 && missingPrompt.stdout.isEmpty)
   }
 
-  @Test func sourceSelectionAndReplacement() throws {
+  @Test func sourceSelectionAndTakeover() throws {
     let fixture = try CLIFixture()
     try fixture.instruction(container: "collection/instructions")
     try fixture.instruction("other", heading: "Other Rules", container: "collection/instructions")
@@ -108,29 +100,34 @@ struct InstructionExecutableTests {
     let sourceArguments = [fixture.source.path, "--path", "collection"]
     let choices = try fixture.success(["instructions", "add"] + sourceArguments)
     #expect(choices.stdout.contains("canonical-artifacts") && choices.stdout.contains("other"))
+    #expect(choices.stdout.contains("Canonical Artifacts rules."))
     #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.json").path))
     let discovered = try fixture.success(["instructions", "list"] + sourceArguments + ["--json"])
       .json()
     #expect(discovered["kind"] as? String == "source")
     let sections = try #require(discovered["sections"] as? [[String: Any]])
     #expect(sections.count == 2 && sections.first?["heading"] as? String == "Canonical Artifacts")
+    #expect(sections.first?["level"] as? Int == 1)
+    #expect(sections.first?["description"] as? String == "Canonical Artifacts rules.")
+    #expect(sections.first?["paths"] as? [String] == [])
     let target = fixture.project.appendingPathComponent("AGENTS.md")
-    let custom = "# Guide\n\n## Canonical Artifacts\n\nConflicting custom content\n"
+    let custom = "# Guide\n\nHand-written content\n"
     try Data(custom.utf8).write(to: target)
     let add = [
       "instructions", "add", fixture.source.path, "canonical-artifacts", "--path", "collection",
     ]
-    let conflict = try fixture.run(add)
-    #expect(conflict.status == 1 && conflict.stdout.isEmpty)
+    let refused = try fixture.run(add)
+    #expect(refused.status == 1 && refused.stdout.isEmpty)
     #expect(
-      conflict.stderr.contains("Conflicting custom content")
-        && conflict.stderr.hasSuffix(
-          "\n  Inspect the differences and rerun with --replace to replace the conflicting custom sections.\n"
+      refused.stderr.contains("Files that agents did not generate are in the way: AGENTS.md.")
+        && refused.stderr.hasSuffix(
+          "\n  Move what those files need into instructions files, then rerun with --replace to take them over.\n"
         ))
     #expect(try String(contentsOf: target, encoding: .utf8) == custom)
     #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.resolved").path))
     let replaced = try fixture.success(add + ["--replace"])
-    #expect(replaced.stdout.contains("-Conflicting custom content"))
+    #expect(replaced.stdout.contains("Take over AGENTS.md, which agents did not generate\n"))
+    #expect(replaced.stdout.contains("-Hand-written content"))
     #expect(replaced.stdout.contains("+Original instructions"))
     try fixture.success(["instructions", "add", "source", "other"])
     let declaration = try fixture.declaration()
@@ -139,10 +136,7 @@ struct InstructionExecutableTests {
       instructions["sections"] as? [String] == ["source:canonical-artifacts", "source:other"])
   }
 
-  @Test(arguments: [
-    ["install"], ["instructions", "remove", "other"],
-  ])
-  func conflictRemedy(_ arguments: [String]) throws {
+  @Test func editedTargetsFollowTheLock() throws {
     let fixture = try CLIFixture()
     try fixture.instruction()
     try fixture.instruction("other", heading: "Other Rules")
@@ -152,17 +146,99 @@ struct InstructionExecutableTests {
       "codex",
     ])
     let target = fixture.project.appendingPathComponent("AGENTS.md")
-    try Data("# Canonical Artifacts\n\nConflicting custom content\n".utf8).write(
-      to: target)
-    let conflict = try fixture.run(arguments)
-    #expect(conflict.status == 1)
+    let original = try Data(contentsOf: target)
+    let edited = Data("Hand edit.\n".utf8)
+    try edited.write(to: target)
+    try fixture.success(["install"])
+    #expect(try Data(contentsOf: target) == original)
+    try edited.write(to: target)
+    let removed = try fixture.success(["instructions", "remove", "other"])
+    #expect(removed.stdout.contains("-Hand edit."))
     #expect(
-      conflict.stderr.contains("Conflicting custom content")
-        && conflict.stderr.hasSuffix(
-          "\n  Edit or remove the conflicting custom sections in the target file, or rerun 'agents instructions add' with --replace, then retry.\n"
+      try String(contentsOf: target, encoding: .utf8)
+        == generated(["# Canonical Artifacts\n\nOriginal instructions"]))
+    try edited.write(to: target)
+    let kept = try fixture.success(["instructions", "remove", "canonical-artifacts"])
+    #expect(kept.stdout.contains("Left AGENTS.md in place; agents no longer manages it\n"))
+    #expect(try Data(contentsOf: target) == edited)
+    for arguments in [["install"], ["instructions", "remove", "other"]] {
+      let invalid = try fixture.run(arguments + ["--replace"])
+      #expect(invalid.status == 64 && invalid.stderr.contains("Unknown option '--replace'"))
+    }
+  }
+
+  @Test func updateTakesOverHandWrittenTargetsOnlyWithReplace() throws {
+    let fixture = try CLIFixture()
+    try fixture.instruction()
+    try fixture.commit()
+    try fixture.success(["instructions", "add", fixture.source.path, "--agent", "codex"])
+    let gemini = fixture.project.appendingPathComponent("GEMINI.md")
+    let custom = Data("# Gemini\n\nHand-written.\n".utf8)
+    try custom.write(to: gemini)
+    let arguments = ["instructions", "update", "--agent", "codex", "--agent", "gemini-cli"]
+    let preview = try fixture.success(arguments + ["--json"]).json()
+    let changes = try #require(preview["instructions"] as? [String: Any])
+    let targets = try #require(changes["targets"] as? [[String: Any]])
+    #expect(targets.first { $0["target"] as? String == "GEMINI.md" }?["foreign"] as? Bool == true)
+    let refused = try fixture.run(arguments + ["--apply"])
+    #expect(
+      refused.status == 1
+        && refused.stderr.hasSuffix(
+          "\n  Move what those files need into instructions files, then rerun with --replace to take them over.\n"
         ))
-    let invalid = try fixture.run(arguments + ["--replace"])
-    #expect(invalid.status == 64 && invalid.stderr.contains("Unknown option '--replace'"))
+    #expect(try Data(contentsOf: gemini) == custom)
+    let usage = try fixture.run(arguments + ["--replace"])
+    #expect(usage.status == 64 && usage.stdout.isEmpty)
+    let applied = try fixture.success(arguments + ["--apply", "--replace"])
+    #expect(applied.stdout.contains("Take over GEMINI.md, which agents did not generate\n"))
+    #expect(
+      try String(contentsOf: gemini, encoding: .utf8)
+        == generated(["# Canonical Artifacts\n\nOriginal instructions"]))
+  }
+
+  @Test func ownInstructionsAndExport() throws {
+    let fixture = try CLIFixture()
+    let created = try fixture.success(["instructions", "init", "guide"])
+    #expect(created.stdout == "Created .agent/instructions/guide.md.\n")
+    let own = fixture.project.appendingPathComponent(".agent/instructions/guide.md")
+    let listed = try fixture.success(["instructions", "list", ".", "--json"]).json()
+    let available = try #require((listed["sections"] as? [[String: Any]])?.first)
+    #expect((available["section"] as? [String: Any])?["source"] as? String == ".")
+    try fixture.success(["instructions", "add", ".", "guide", "--agent", "codex"])
+    let target = fixture.project.appendingPathComponent("AGENTS.md")
+    #expect(
+      try String(contentsOf: target, encoding: .utf8)
+        == generated(["# guide\n\nWrite the instructions here."]))
+    let declaration = try fixture.declaration()
+    #expect((declaration["instructions"] as? [String: Any])?["sections"] as? [String] == ["guide"])
+    try Data(
+      "---\ndescription: Guide.\n---\n# guide\n\nEdited instructions.\n".utf8
+    ).write(to: own)
+    let install = try fixture.run(["install"])
+    #expect(
+      install.status == 1
+        && install.stderr.hasSuffix(
+          "\n  Run 'agents instructions update --apply' to regenerate targets from the edited file.\n"
+        ))
+    try fixture.success(["instructions", "update", "--apply"])
+    #expect(try String(contentsOf: target, encoding: .utf8).contains("Edited instructions."))
+    let other = fixture.root.appendingPathComponent("other")
+    try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+    let export = try fixture.success([
+      "instructions", "export", "--root", fixture.project.path, "--root", other.path, "--json",
+    ]).json()
+    #expect(export["schemaVersion"] as? Int == 1)
+    let scopes = try #require(export["scopes"] as? [[String: Any]])
+    #expect(scopes.map { $0["scope"] as? String } == ["user", "project", "project"])
+    #expect(scopes.map { $0["status"] as? String } == ["missingLock", "locked", "missingLock"])
+    let mapped = try #require((scopes[1]["targets"] as? [[String: Any]])?.first)
+    #expect(
+      mapped["target"] as? String == "AGENTS.md" && mapped["agents"] as? [String] == ["codex"])
+    let section = try #require((mapped["sections"] as? [[String: Any]])?.first)
+    #expect(section["name"] as? String == "guide" && section["source"] as? String == ".")
+    #expect(section["path"] as? String == ".agent/instructions/guide.md")
+    let human = try fixture.success(["instructions", "export"])
+    #expect(human.stdout.contains("  AGENTS.md  codex\n    guide  .\n"))
   }
 
   @Test func recipientOnlyUpdate() throws {
@@ -191,7 +267,7 @@ struct InstructionExecutableTests {
     #expect(
       Set(change.keys) == [
         "target", "path", "changed", "agentsChanged", "beforeAgents", "afterAgents",
-        "before", "after", "drift", "adoptedSections", "conflicts",
+        "before", "after", "drift", "foreign",
       ])
     #expect(change["changed"] as? Bool == false && change["agentsChanged"] as? Bool == true)
     #expect(change["beforeAgents"] as? [String] == ["codex"])
@@ -298,7 +374,7 @@ struct InstructionExecutableTests {
     #expect(checks.first?["kind"] as? String == "skills")
     #expect(
       checks.contains {
-        $0["kind"] as? String == "instructions" && $0["id"] as? String == "missingBlock"
+        $0["kind"] as? String == "instructions" && $0["id"] as? String == "drift"
       })
     let lock = try Data(contentsOf: fixture.state("agents.resolved"))
     let restored = try fixture.success(["install", "--json"]).json()
@@ -311,7 +387,7 @@ struct InstructionExecutableTests {
     try fixture.instruction(body: "Updated section")
     try fixture.commit()
     let preview = try fixture.success(["update", "--json"]).json()
-    #expect(preview["schemaVersion"] as? Int == 1 && preview["changed"] as? Bool == true)
+    #expect(preview["schemaVersion"] as? Int == 2 && preview["changed"] as? Bool == true)
     #expect((preview["skills"] as? [[String: Any]])?.first?["changed"] as? Bool == true)
     #expect(
       (preview["instructions"] as? [String: Any])?["changedPrompts"] as? [String] == ["weekly"])
@@ -338,8 +414,9 @@ struct InstructionExecutableTests {
     try fixture.success(["skills", "add", fixture.source.path, "pdf"])
     try fixture.success(["instructions", "add", fixture.source.path])
     let target = fixture.project.appendingPathComponent("AGENTS.md")
-    let invalid = try Data(contentsOf: target) + Data("\n<!-- END managed by agents -->\n".utf8)
-    try invalid.write(to: target)
+    let generatedTarget = try Data(contentsOf: target)
+    try Data("# Canonical Artifacts\n\nNo front matter.\n".utf8).write(
+      to: fixture.source.appendingPathComponent("instructions/canonical-artifacts.md"))
     try fixture.skill("pdf", body: "Updated content")
     try fixture.commit()
     let lock = try Data(contentsOf: fixture.state("agents.resolved"))
@@ -352,19 +429,19 @@ struct InstructionExecutableTests {
           try String(contentsOf: fixture.project.appendingPathComponent(path), encoding: .utf8)
             .contains("Original content"))
       }
-      #expect(try Data(contentsOf: target) == invalid)
+      #expect(try Data(contentsOf: target) == generatedTarget)
       #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
     }
   }
 
   @Test func instructionDoctorErrorsAndFailedJSON() throws {
     let fixture = try CLIFixture()
-    try fixture.instruction()
+    try fixture.instruction(body: "Run [the checks](CONTRIBUTING.md).")
     try fixture.commit()
+    let contributing = fixture.project.appendingPathComponent("CONTRIBUTING.md")
+    try Data("Checks.\n".utf8).write(to: contributing)
     try fixture.success(["instructions", "add", fixture.source.path, "--agent", "codex"])
-    let target = fixture.project.appendingPathComponent("AGENTS.md")
-    let original = try String(contentsOf: target, encoding: .utf8)
-    try Data((original + "\n<!-- END managed by agents -->\n").utf8).write(to: target)
+    try FileManager.default.removeItem(at: contributing)
     let doctor = try fixture.run(["doctor", "--json"])
     #expect(doctor.status == 1 && doctor.stderr.isEmpty)
     let report = try doctor.json()
@@ -373,14 +450,15 @@ struct InstructionExecutableTests {
     let checks = try #require(roots.first?["checks"] as? [[String: Any]])
     #expect(
       checks.contains {
-        $0["id"] as? String == "invalidTarget" && $0["status"] as? String == "error"
+        $0["id"] as? String == "invalidLink" && $0["status"] as? String == "error"
       })
     let failed = try fixture.run(["install", "--json"])
     #expect(failed.status == 1 && failed.stdout.isEmpty)
     #expect(failed.stderr.split(separator: "\n").dropFirst().allSatisfy { $0.hasPrefix("  ") })
     #expect(
       failed.stderr.hasSuffix(
-        "\n  Check the instruction source and target Markdown with 'agents doctor'.\n"))
+        "\n  Link only to files in the checkout being written, or name the file in text without a link.\n"
+      ))
   }
 
   @Test func emptyScopeReports() throws {
@@ -422,10 +500,11 @@ struct InstructionExecutableTests {
   @Test func initialization() throws {
     let fixture = try CLIFixture()
     try fixture.success(["instructions", "init", "new-rules"])
-    let file = fixture.project.appendingPathComponent("new-rules.md")
+    let file = fixture.project.appendingPathComponent(".agent/instructions/new-rules.md")
     #expect(
       try String(contentsOf: file, encoding: .utf8)
-        == "# new-rules\n\nWrite the instructions here.\n")
+        == "---\ndescription: Describe what these instructions make the agent do.\n---\n# new-rules\n\nWrite the instructions here.\n"
+    )
     let duplicate = try fixture.run(["instructions", "init", "new-rules"])
     #expect(duplicate.status == 1 && duplicate.stderr.contains("already exists"))
   }
@@ -435,7 +514,8 @@ struct InstructionExecutableTests {
     ["instructions", "list", "--help"], ["instructions", "remove", "--help"],
     ["instructions", "update", "--help"], ["instructions", "render"],
     ["instructions", "render", "--help"], ["instructions", "render", "chatgpt", "--help"],
-    ["instructions", "init", "--help"], ["help", "instructions", "render", "chatgpt"],
+    ["instructions", "init", "--help"], ["instructions", "export", "--help"],
+    ["help", "instructions", "render", "chatgpt"],
   ])
   func help(_ arguments: [String]) throws {
     let fixture = try CLIFixture()
@@ -462,6 +542,11 @@ struct InstructionExecutableTests {
   }
 }
 
+/// A generated target holding these section bodies.
+func generated(_ sections: [String]) -> String {
+  Instructions.notice + "\n\n" + sections.joined(separator: "\n\n") + "\n"
+}
+
 extension CLIFixture {
   func instruction(
     _ name: String = "canonical-artifacts", heading: String = "Canonical Artifacts",
@@ -469,7 +554,7 @@ extension CLIFixture {
   ) throws {
     let directory = source.appendingPathComponent(container)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    try Data("# \(heading)\n\n\(body)\n".utf8).write(
+    try Data("---\ndescription: \(heading) rules.\n---\n# \(heading)\n\n\(body)\n".utf8).write(
       to: directory.appendingPathComponent(name + ".md"))
   }
 
