@@ -54,8 +54,8 @@ an upstream change:
 
 ## Install
 
-Version 0.1.2 and development builds require macOS 15 or later. Earlier
-releases retain their original requirements.
+Versions 0.1.2 and later and development builds require macOS 15 or later.
+Earlier releases retain their original requirements.
 
 Install the latest release from the Homebrew tap:
 
@@ -92,8 +92,11 @@ agents skills add https://github.com/anthropics/skills.git --all --agent codex
 agents skills list
 agents skills list --scope user --json
 agents instructions add /path/to/rules canonical-artifacts
+agents instructions init review
+agents instructions add . review
 agents instructions list
 agents instructions update --apply
+agents instructions export --json
 agents instructions render chatgpt weekly | pbcopy
 agents watch add https://github.com/anthropics/skills.git
 agents watch
@@ -114,11 +117,15 @@ selected with `--scope user`. Commands never prompt for confirmation.
 changes since the last `watch seen`, and previews file differences. Removing a
 subscription with `watch remove` keeps installed skills and instructions.
 
-Instructions are Markdown sections discovered in a source's `instructions/` or
-`.agents/instructions/` directory. Managed blocks preserve surrounding custom
-content in agent files, with Claude forwarding where needed. `--agent` on
-instructions add, remove, or update sets the recipients of the scope's entire
-section list. `agents instructions init <name>` creates `<name>.md`.
+Instructions are Markdown files with front matter, discovered in a source's
+`instructions/` or `.agents/instructions/` directory, or in the project's own
+`.agent/instructions/` as source `.`. Each agent file is generated from its
+sections, a section with `paths` goes to the nested file of the directory its
+patterns share, and Claude is forwarded where needed. A file that agents did not
+generate is taken over only with `--replace`. `--agent` on instructions add,
+remove, or update sets the recipients of the scope's entire section list.
+`agents instructions init <name>` creates `.agent/instructions/<name>.md`, and
+`agents instructions export` maps locked targets to their sections.
 
 Named ChatGPT prompts are declared in `agents.json` and locked with
 `agents instructions update --apply`; render emits only their locked sections
@@ -161,7 +168,7 @@ Executable tests create local Git sources and isolated homes in the system
 temporary directory. Every child process uses an explicit environment rather
 than inheriting agent or Git configuration. Fixtures are removed after tests.
 
-Core uses the published version range `"0.1.2"..<"0.2.0"`. To use a local core
+Core uses the published version range `"0.2.0"..<"0.3.0"`. To use a local core
 worktree without changing the package manifest:
 
 ```sh

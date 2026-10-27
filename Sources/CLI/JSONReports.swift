@@ -68,7 +68,7 @@ struct AvailableItem: Encodable {
 }
 
 struct UpdateReport: Encodable {
-  let schemaVersion = 1
+  let schemaVersion = 2
   let scope: String
   let changed: Bool
   let skills: [UpdateItem]
@@ -262,7 +262,8 @@ struct CheckItem: Encodable {
     kind = "instructions"
     id = diagnostic.kind.rawValue
     switch diagnostic.kind {
-    case .invalidTarget, .conflict, .invalidConfiguration, .stateUnavailable, .pendingRecovery:
+    case .invalidTarget, .foreignTarget, .invalidLink, .invalidConfiguration, .stateUnavailable,
+      .pendingRecovery:
       status = "error"
     default:
       status = "warning"

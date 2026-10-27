@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Instruction report definitions, version 1",
+  "title": "Instruction report definitions, version 2",
   "$defs": {
     "section": {
       "type": "object",
@@ -123,40 +123,11 @@
                 "enum": [
                   "clean",
                   "drifted",
-                  "missingBlock"
+                  "missing"
                 ]
               },
-              "adoptedSections": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "conflicts": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "section": {
-                      "type": "string"
-                    },
-                    "existing": {
-                      "type": "string"
-                    },
-                    "proposed": {
-                      "type": "string"
-                    },
-                    "difference": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "section",
-                    "existing",
-                    "proposed",
-                    "difference"
-                  ]
-                }
+              "foreign": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -166,8 +137,7 @@
               "agentsChanged",
               "beforeAgents",
               "afterAgents",
-              "adoptedSections",
-              "conflicts"
+              "foreign"
             ]
           }
         },

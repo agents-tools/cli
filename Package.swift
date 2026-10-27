@@ -8,9 +8,7 @@ let package = Package(
   products: [.executable(name: "agents", targets: ["CLI"])],
   dependencies: [
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.7.0"),
-    .package(
-      url: "https://github.com/agents-tools/core.git",
-      "0.1.2"..<"0.2.0"),
+    .package(url: "https://github.com/agents-tools/core.git", "0.2.0"..<"0.3.0"),
   ],
   targets: [
     .executableTarget(

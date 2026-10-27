@@ -27,7 +27,7 @@ struct SourceSelectorTests {
     let fixture = try CLIFixture()
     let instructions = fixture.source.appendingPathComponent("instructions")
     try FileManager.default.createDirectory(at: instructions, withIntermediateDirectories: true)
-    try Data("# Rules\n\nFollow them.\n".utf8).write(
+    try Data("---\ndescription: Rules.\n---\n# Rules\n\nFollow them.\n".utf8).write(
       to: instructions.appendingPathComponent("rules.md"))
     try fixture.commit()
     let rejected = try fixture.run([

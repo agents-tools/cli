@@ -35,12 +35,6 @@
               "type": "string"
             }
           },
-          "headingOffset": {
-            "enum": [
-              0,
-              1
-            ]
-          },
           "import": {
             "type": "string"
           },

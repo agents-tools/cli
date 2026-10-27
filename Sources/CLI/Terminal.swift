@@ -107,14 +107,25 @@ enum Terminal {
       action = "check the scope's agents.json, agents.resolved, and recovery journal"
     case CoreError.commandFailed:
       action = "check the command arguments and filesystem permissions"
-    case InstructionError.conflictingSections:
-      if command is AddInstructions {
+    case InstructionError.unownedTargets:
+      if command is AddInstructions || command is UpdateInstructions {
         action =
-          "inspect the differences and rerun with --replace to replace the conflicting custom sections"
+          "move what those files need into instructions files, then rerun with --replace to take them over"
+      } else if command is Install || command is RemoveInstructions {
+        action =
+          "move those files aside and retry, then put what they need into instructions files"
       } else {
         action =
-          "edit or remove the conflicting custom sections in the target file, or rerun 'agents instructions add' with --replace, then retry"
+          "move what those files need into instructions files, then run 'agents instructions update --apply --replace'"
       }
+    case InstructionError.invalidLockedBlock:
+      action =
+        "run 'agents instructions update --apply' to regenerate the targets, adding --replace to take over files that agents did not generate"
+    case InstructionError.ownChanged:
+      action = "run 'agents instructions update --apply' to regenerate targets from the edited file"
+    case InstructionError.invalidLinks:
+      action =
+        "link only to files in the checkout being written, or name the file in text without a link"
     case HumanOutputError.undeclaredPrompt:
       action =
         "declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'"
@@ -221,8 +232,44 @@ enum Terminal {
   static func availableInstructions(_ sections: [InstructionUnit]) {
     if sections.isEmpty { write("No instruction sections found in source.\n") }
     for unit in sections {
-      write("\(line(unit.record.name))  \(line(unit.section.heading))\n")
+      write(
+        "\(line(unit.record.name))  \(line(unit.section.heading))  \(line(unit.section.description))\n"
+      )
     }
+  }
+
+  static func instructionMappings(_ mappings: [InstructionMapping], paths: HumanPaths) {
+    for mapping in mappings {
+      let status: String
+      switch mapping.status {
+      case .locked: status = ""
+      case .missingLock: status = "  no lock"
+      case .pendingRecovery: status = "  recovery pending"
+      case .unavailable(let reason): status = "  unavailable: " + line(reason)
+      }
+      let root = HumanPaths(scope: mapping.scope, environment: paths.environment)
+        .path(mapping.root.path)
+      write("\(root) (\(mapping.scope.rawValue))\(status)\n")
+      for target in mapping.targets {
+        let imported = target.import.map { "  imports " + line($0) } ?? ""
+        write(
+          "  \(paths.path(target.target))  \(recipients(target.agents))\(imported)\n")
+        for section in target.sections { write(mappedSection(section, paths: paths)) }
+      }
+      if !mapping.unplaced.isEmpty { write("  Unplaced\n") }
+      for section in mapping.unplaced { write(mappedSection(section, paths: paths)) }
+      for (name, sections) in mapping.prompts.sorted(by: { $0.key < $1.key }) {
+        write("  ChatGPT \(line(name))\n")
+        for section in sections { write(mappedSection(section, paths: paths)) }
+      }
+    }
+  }
+
+  private static func mappedSection(_ section: LockedSection, paths: HumanPaths) -> String {
+    let pinned = section.revision != nil || section.version != nil
+    let pin =
+      pinned ? "  " + line(HumanItem.pin(revision: section.revision, version: section.version)) : ""
+    return "    \(line(section.name))  \(paths.source(section.source))\(pin)\n"
   }
 
   static func managedInstructions(_ report: InstructionListReport, paths: HumanPaths) {
@@ -298,16 +345,14 @@ enum Terminal {
   static func instructionTargets(_ targets: [InstructionTargetChange], paths: HumanPaths) {
     for target in targets {
       let path = paths.path(target.url.path)
-      for section in target.assembly.adoptedSections {
-        write("Adopt \(line(section)) in \(path)\n")
-      }
-      for conflict in target.assembly.conflicts {
-        write("Conflict \(line(conflict.sectionID)) in \(path)\n")
-      }
+      if target.foreign { write("Take over \(path), which agents did not generate\n") }
       if target.agentsChanged {
         write(
           "Recipients of \(path): \(recipients(target.beforeAgents ?? [])) -> \(recipients(target.afterAgents))\n"
         )
+      }
+      if !target.changed, target.after != nil, target.afterAgents.isEmpty {
+        write("Left \(path) in place because it differs from its generated version\n")
       }
       if target.changed {
         write(
