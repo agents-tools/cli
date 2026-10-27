@@ -3,7 +3,7 @@ import Darwin
 import Foundation
 
 enum BuildInfo {
-  static let version = "0.1.2"
+  static let version = "0.2.0"
 }
 
 struct Agents: ParsableCommand {

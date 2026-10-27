@@ -6,6 +6,10 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 
 ## Unreleased
 
+## [0.2.0] - 2026-10-27
+
+Built on agents-tools/core 0.2.0.
+
 ### Added
 
 - `agents instructions add . <names…>` and `agents instructions list .` use the
