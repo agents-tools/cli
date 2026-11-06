@@ -1,3 +1,5 @@
+import AgentsCore
+import AgentsManifest
 import Foundation
 import Testing
 
@@ -106,6 +108,33 @@ final class CLIFixture {
     (scope == "user"
       ? home.appendingPathComponent(".agents") : project.appendingPathComponent(".agent"))
       .appendingPathComponent(name)
+  }
+
+  func declaration(scope: String = "project") throws -> Declaration {
+    try StateStore(
+      scope: scope == "user" ? .user : .project,
+      environment: RuntimeEnvironment(
+        projectDirectory: project, homeDirectory: home, environment: environment)
+    ).loadDeclaration()
+  }
+
+  func writeManifest(_ source: String, scope: String = "project") throws {
+    let url = state("Agents.swift", scope: scope)
+    try FileManager.default.createDirectory(
+      at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data((source + "\n").utf8).write(to: url)
+  }
+
+  func declareSkills(mode: String = "link", agents: String = "[.claudeCode, .codex]") throws {
+    try writeManifest(
+      """
+      // agents-tools-version: 1.0
+      import AgentsDescription
+      let agents = Agents(
+        sources: [.source(name: "source", path: \(source.path.debugDescription))],
+        components: [.skills(source: "source", select: ["pdf"], mode: .\(mode), agents: \(agents))]
+      )
+      """)
   }
 
   private func process(_ executable: URL, _ arguments: [String], directory: URL) throws -> CLIResult

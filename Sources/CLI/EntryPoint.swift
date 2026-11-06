@@ -1,6 +1,11 @@
 import ArgumentParser
-import Darwin
 import Foundation
+
+#if canImport(Darwin)
+  import Darwin
+#else
+  import Glibc
+#endif
 
 enum BuildInfo {
   static let version = "0.2.0"
@@ -21,7 +26,8 @@ struct Agents: ParsableCommand {
         agents update --apply       Write the updates and the new lock
       """,
     subcommands: [
-      Skills.self, InstructionsCommand.self, Watch.self, Install.self, Update.self, Doctor.self,
+      Skills.self, InstructionsCommand.self, Watch.self, Manifest.self, Install.self, Update.self,
+      Doctor.self,
     ]
   )
 
@@ -61,7 +67,7 @@ enum EntryPoint {
       }
       Terminal.error(
         Agents.message(for: error), remedy: "Run 'agents --help' for usage.")
-      Darwin.exit(64)
+      exit(64)
     }
     do {
       try command.run()
@@ -72,11 +78,11 @@ enum EntryPoint {
         return
       }
       if let code = error as? ExitCode {
-        Darwin.exit(code.rawValue)
+        exit(code.rawValue)
       }
       Terminal.error(
         Terminal.failureMessage(error), remedy: Terminal.failureRemedy(error, command: command))
-      Darwin.exit(1)
+      exit(1)
     }
   }
 

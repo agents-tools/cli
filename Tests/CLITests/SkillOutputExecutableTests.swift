@@ -47,7 +47,7 @@ struct SkillOutputExecutableTests {
     let revision = try fixture.revision()
     var previousMode = "link"
     for mode in ["copy", "edit", "link"] {
-      try changeSelection(fixture) { $0["mode"] = mode }
+      try fixture.declareSkills(mode: mode)
       let output = try fixture.success(["skills", "update", "--apply"]).stdout
       #expect(
         output.contains("  ~ changed  codex (\(previousMode) -> \(mode))  .agents/skills/pdf\n"))
@@ -86,7 +86,7 @@ struct SkillOutputExecutableTests {
     try fixture.skill("pdf")
     try fixture.commit()
     try fixture.success(["skills", "add", fixture.source.path, "pdf"])
-    try changeSelection(fixture) { $0["agents"] = ["codex"] }
+    try fixture.declareSkills(agents: "[.codex]")
     let revision = try fixture.revision()
     let partial = try fixture.success(["skills", "update", "--apply"]).stdout
     #expect(partial.contains("--- a/pdf/SKILL.md\n+++ /dev/null\n"))
@@ -94,9 +94,12 @@ struct SkillOutputExecutableTests {
     #expect(
       partial.hasSuffix(
         "Removed pdf for claude-code.\nUpdated pdf for codex: \(revision) -> \(revision).\n"))
-    var declaration = try fixture.declaration()
-    declaration["skills"] = [String: Any]()
-    try JSONSerialization.data(withJSONObject: declaration).write(to: fixture.state("agents.json"))
+    try fixture.writeManifest(
+      """
+      // agents-tools-version: 1.0
+      import AgentsDescription
+      let agents = Agents()
+      """)
     let removed = try fixture.success(["skills", "update", "--apply"]).stdout
     #expect(removed.contains("--- a/pdf/SKILL.md\n+++ /dev/null\n"))
     #expect(removed.hasSuffix("Removed pdf for codex.\n"))
@@ -166,14 +169,4 @@ struct SkillOutputExecutableTests {
     #expect(!FileManager.default.fileExists(atPath: journal.path))
   }
 
-  private func changeSelection(_ fixture: CLIFixture, edit: (inout [String: Any]) -> Void) throws {
-    var declaration = try fixture.declaration()
-    var skills = try #require(declaration["skills"] as? [String: [String: Any]])
-    let alias = try #require(skills.keys.first)
-    var selection = try #require(skills[alias])
-    edit(&selection)
-    skills[alias] = selection
-    declaration["skills"] = skills
-    try JSONSerialization.data(withJSONObject: declaration).write(to: fixture.state("agents.json"))
-  }
 }

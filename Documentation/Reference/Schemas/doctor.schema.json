@@ -32,7 +32,8 @@
               "type": "object",
               "properties": {
                 "id": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Core diagnostic ID. Pending recovery and unresolved transaction IDs are reported as errors; unresolved transaction messages retain owner-action details."
                 },
                 "status": {
                   "enum": [

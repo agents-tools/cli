@@ -12,6 +12,8 @@ This directory indexes repository-native documentation for `agents-tools/cli`.
 - [Archive](Archive/README.md): retired or superseded material kept for record
 - [CLI reference](Reference/CLI.md): shipped commands, options, output, errors,
   state locations, and JSON contracts.
+- [Manifest dump](Reference/ManifestDump.md): producer-owned language JSON contract
+  exposed by `agents manifest dump --json`.
 - [JSON schemas](Reference/Schemas/): machine-readable schemas for list,
   update previews, watch status and diffs, installation, and doctor.
 - [Release checklist](Reference/Release.md): prepare and verify release commits,

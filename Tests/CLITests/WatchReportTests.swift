@@ -6,22 +6,30 @@ import Testing
 @testable import CLI
 
 struct WatchReportTests {
-  @Test func confirmationUsesSubscribedAliasThenSubscribedIdentity() throws {
+  @Test func watchChangesReturnConfirmedIdentity() throws {
     let fixture = try CLIFixture()
     let environment = RuntimeEnvironment(
       projectDirectory: fixture.project, homeDirectory: fixture.home,
       environment: fixture.environment)
     let id = "example.invalid/rules"
-    var declaration = Declaration(
-      sources: [
-        id: SourceDeclaration(kind: .local, location: fixture.source.path),
-        "remote": SourceDeclaration(kind: .git, location: "https://example.invalid/rules.git"),
-      ], watch: ["remote"])
-    #expect(try watchedSourceID(id, declaration: declaration, environment: environment) == id)
-    declaration.watch = [id, "remote"]
-    #expect(
-      try watchedSourceID(id, declaration: declaration, environment: environment) == "local:"
-        + fixture.source.path)
+    try fixture.skill()
+    try fixture.commit()
+    try fixture.writeManifest(
+      """
+      // agents-tools-version: 1.0
+      import AgentsDescription
+      let agents = Agents(sources: [
+        .source(name: \(id.debugDescription), path: \(fixture.source.path.debugDescription)),
+        .source(name: "remote", url: "https://example.invalid/rules.git"),
+      ])
+      """)
+    let operations = SkillOperations.watchOperations()
+    let added = try operations.add(id, environment: environment)
+    #expect(added.alias == id && added.sourceID == "local:" + fixture.source.path)
+    let seen = try operations.seen(id, environment: environment)
+    #expect(seen.alias == id && seen.sourceID == added.sourceID && seen.seen == added.seen)
+    let removed = try operations.remove(id, environment: environment)
+    #expect(removed.alias == id && removed.sourceID == added.sourceID && removed.seen == nil)
   }
 
   @Test func wellKnownRenderingAndDigests() throws {

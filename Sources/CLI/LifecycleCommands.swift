@@ -54,13 +54,14 @@ struct UpdateOptions: ParsableArguments {
   }
 
   func updateSkills(names: [String] = []) throws -> [UpdateResult] {
-    try withRecovery {
+    func operation() throws -> [UpdateResult] {
       try SkillOperations.updateInstalled(
         scope: location.scope, skillNames: names, apply: apply,
         beforeApply: { results in
           Terminal.differences(results, paths: location.paths)
         })
     }
+    return try apply ? withRecovery(operation) : operation()
   }
 
   func finishSkills(_ results: [UpdateResult]) {
@@ -74,13 +75,14 @@ struct UpdateOptions: ParsableArguments {
   func updateInstructions(agents: [AgentID]? = nil, replace: Bool = false) throws
     -> InstructionUpdateReport
   {
-    try withRecovery {
+    func operation() throws -> InstructionUpdateReport {
       try InstructionOperations.updateInstalled(
         scope: location.scope, agents: agents, apply: apply, replace: replace,
         beforeApply: { result in
           Terminal.instructionDifferences(result, paths: location.paths)
         })
     }
+    return try apply ? withRecovery(operation) : operation()
   }
 
   func finishInstructions(_ result: InstructionUpdateReport) {
