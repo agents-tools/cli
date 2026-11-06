@@ -29,6 +29,9 @@ with a macOS GUI.
   release.
 - **Platforms.** The CLI runs on macOS 15, 26 and 27 and on Linux. The GUI runs
   on macOS.
+- **Configuration management.** Users inspect and apply concrete configuration
+  changes. MCP connection testing is an optional explicit action; the consuming
+  agent owns runtime trust, authentication and tool-call permissions.
 - **Conventions.** Content keeps its ecosystem formats: a skill is a directory
   with `SKILL.md`, and instructions are Markdown with front matter. A
   repository laid out by those conventions is usable as a source without an
@@ -55,5 +58,7 @@ with a macOS GUI.
 
 - Accepted by the repository owner (showxu) on 2026-10-28.
 - Front ends over core: [Front Ends](FrontEnds.md)
-- Manifest, components and approval: [core decisions](https://github.com/agents-tools/core/tree/master/Documentation/Decisions)
+- Manifest and components: [core decisions](https://github.com/agents-tools/core/tree/master/Documentation/Decisions)
+- Configuration application clarified by the owner on 2026-11-06:
+  [Configuration Application](https://github.com/agents-tools/core/blob/19be46f3c38efbd32bb95ae33649d1b141b7efe6/Documentation/Decisions/ConfigurationApplication.md)
 - Current commands: [CLI reference](../Reference/CLI.md)

@@ -23,6 +23,15 @@ can disagree with each other and with any CLI.
   collections are named groups in the manifest. Moving a setup to another
   machine means syncing `Agents.swift` and the lock and running
   `agents install`.
+- **Configuration application.** The GUI shows the concrete configuration
+  changes and targets; one confirmation applies them through core. Explicit
+  modifying CLI commands express the same intent. External automation invokes
+  those commands within its supplied scope.
+- **MCP connection tests.** A separate optional action checks the selected
+  configuration by initializing the protocol and discovering tools. A local
+  stdio test starts its displayed command. The result describes that test,
+  independently of configuration application and the native client's runtime
+  trust, authentication and tool-call permissions.
 - **Previews bind to apply.** The GUI uses core's prepare and apply. If the
   manifest or targets change during a preview, apply re-checks and refreshes
   the plan.
@@ -32,7 +41,7 @@ can disagree with each other and with any CLI.
 - **Updates.** The GUI checks and notifies, and applies on request.
 - **On-device assistance.** Where Apple's on-device model is available, the
   GUI uses Foundation Models to explain a skill, translate its description,
-  summarize an update and explain a pending executable component. These
+  summarize an update and explain configuration changes. These
   features are hidden when the model is unavailable and can be turned off.
 - **The `skill` CLI** remains the skills-only entry point over the same core
   and state, released on the same core version.
@@ -69,5 +78,6 @@ can disagree with each other and with any CLI.
 
 - Accepted by the repository owner (showxu) on 2026-10-28.
 - Product scope: [Product Scope](ProductScope.md)
-- Executable approval the GUI presents: [core decisions](https://github.com/agents-tools/core/tree/master/Documentation/Decisions)
+- Configuration application clarified by the owner on 2026-11-06:
+  [Configuration Application](https://github.com/agents-tools/core/blob/19be46f3c38efbd32bb95ae33649d1b141b7efe6/Documentation/Decisions/ConfigurationApplication.md)
 - Current architecture: [Architecture](../Architecture/README.md)
