@@ -13,7 +13,7 @@ struct SourceSelectorTests {
     let declaration = try fixture.declaration()
     let source = try #require(declaration.sources["source"])
     #expect(source.location == fixture.source.path && source.requirement == .branch("main"))
-    #expect(declaration.skills?["source"]?.select == .names(["demo"]))
+    #expect(try declaration.skills?["source"]?.select == .names(["demo"]))
   }
 
   @Test func instructionAddAcceptsRequirementsAndRejectsSkillSelectors() throws {

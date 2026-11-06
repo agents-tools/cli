@@ -196,7 +196,7 @@ struct RenderChatGPT: ParsableCommand {
 
   func run() throws {
     let declaration = try StateStore(scope: location.scope).loadDeclaration()
-    guard declaration.instructions?.chatgpt?[prompt] != nil else {
+    guard try declaration.instructions?.chatgpt?[prompt] != nil else {
       throw HumanOutputError.undeclaredPrompt(prompt)
     }
     let bytes = try InstructionOperations.renderChatGPT(prompt: prompt, scope: location.scope)

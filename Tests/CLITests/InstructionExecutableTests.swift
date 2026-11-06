@@ -134,7 +134,8 @@ struct InstructionExecutableTests {
     #expect(replaced.stdout.contains("+Original instructions"))
     try fixture.success(["instructions", "add", "source", "other"])
     let declaration = try fixture.declaration()
-    #expect(declaration.instructions?.sections == ["source:canonical-artifacts", "source:other"])
+    #expect(
+      try declaration.instructions?.sections == ["source:canonical-artifacts", "source:other"])
   }
 
   @Test func editedTargetsFollowTheLockAndHandWrittenOnesNeedReplace() throws {
@@ -279,7 +280,7 @@ struct InstructionExecutableTests {
       try String(contentsOf: target, encoding: .utf8)
         == generated(["# guide\n\nWrite the instructions here."]))
     let declaration = try fixture.declaration()
-    #expect(declaration.instructions?.sections == ["guide"])
+    #expect(try declaration.instructions?.sections == ["guide"])
     try Data(
       "---\ndescription: Guide.\n---\n# guide\n\nEdited instructions.\n".utf8
     ).write(to: own)
