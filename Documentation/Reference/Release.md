@@ -39,8 +39,11 @@ changelog entry in the requirement's final delivery candidate.
 
 ## Verify the Release Commit
 
-On macOS, the CLI requires macOS 15 or later and Swift 6.3 or later to build. Shared CI
-compiles and tests only with Xcode 26.6 on `macos-26`.
+The CLI builds from source on macOS and Linux; [Package.swift](../../Package.swift)
+defines the minimum toolchain and macOS versions. Shared CI validates Xcode
+26.6 on `macos-26` and the pinned Swift 6.4.1 Noble Linux image in
+[package configuration](../../.github/swift-package.json). The local validation
+commands below use macOS's Xcode tools.
 
 Use a clean task or detached worktree at the exact merged release candidate.
 Do not build in the main checkout. Fetch tags, record `release_commit`, and

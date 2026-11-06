@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/agents-tools/cli/actions/workflows/ci.yml"><img src="https://github.com/agents-tools/cli/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI"></a>
   <a href="Package.swift"><img src="https://img.shields.io/badge/Swift-6.3%2B-F05138" alt="Swift 6.3+"></a>
-  <a href="Package.swift"><img src="https://img.shields.io/badge/platforms-macOS%2015%2B-lightgrey" alt="Platforms: macOS 15+"></a>
+  <a href="Package.swift"><img src="https://img.shields.io/badge/platforms-macOS%2015%2B%20%7C%20Linux-lightgrey" alt="Platforms: macOS 15+ and Linux"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
 </p>
 
@@ -73,7 +73,7 @@ brew install --HEAD agents-tools/tap/agents
 See the [tap documentation](https://github.com/agents-tools/homebrew-tap#readme)
 for packaging and channel details.
 
-To build from source instead:
+To build from source on macOS or Linux:
 
 ```sh
 git clone https://github.com/agents-tools/cli.git
@@ -210,8 +210,9 @@ declared in the organization's
 | `policy / policy` | Conventional Commit subjects, PR title, and added-line policy |
 | `validate / result` | Strict format lint, package tests, release build, and terminal recording check |
 
-[Package configuration](.github/swift-package.json) selects only Xcode 26.6 on
-`macos-26`, whose Swift 6.3 matches the package's minimum tools version.
+[Package configuration](.github/swift-package.json) selects Xcode 26.6 on
+`macos-26` and a pinned Swift 6.4.1 Noble container image for Linux validation.
+[Package.swift](Package.swift) defines the minimum toolchain and macOS versions.
 Formatting uses the default paths: `Package.swift`, `Sources`, and `Tests`.
 Executable tests cover help, version, and usage errors in an isolated environment.
 
