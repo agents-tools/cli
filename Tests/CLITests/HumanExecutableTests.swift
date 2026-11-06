@@ -7,12 +7,12 @@ struct HumanExecutableTests {
   @Test func missingGitSourceHasConciseFailureAndRemedy() throws {
     let fixture = try CLIFixture()
     let source = "file://localhost" + fixture.home.appendingPathComponent("missing.git").path
-    try FileManager.default.createDirectory(
-      at: fixture.state("agents.json").deletingLastPathComponent(),
-      withIntermediateDirectories: true)
-    try JSONSerialization.data(withJSONObject: [
-      "sources": ["missing": ["git": source]]
-    ]).write(to: fixture.state("agents.json"))
+    try fixture.writeManifest(
+      """
+      // agents-tools-version: 1.0
+      import AgentsDescription
+      let agents = Agents(sources: [.source(name: "missing", url: \(source.debugDescription))])
+      """)
     let failure = try fixture.run(["skills", "add", "missing", "demo"])
     #expect(failure.status == 1 && failure.stdout.isEmpty)
     #expect(failure.stderr.hasPrefix("Error: Git could not clone \(source).\n"))
@@ -200,12 +200,7 @@ struct HumanExecutableTests {
     try fixture.success([
       "skills", "add", fixture.source.path, "pdf", "--mode", "edit", "--agent", "codex",
     ])
-    var declaration = try fixture.declaration()
-    var skills = try #require(declaration["skills"] as? [String: [String: Any]])
-    let alias = try #require(skills.keys.first)
-    skills[alias]?["agents"] = ["cursor"]
-    declaration["skills"] = skills
-    try JSONSerialization.data(withJSONObject: declaration).write(to: fixture.state("agents.json"))
+    try fixture.declareSkills(mode: "edit", agents: "[.cursor]")
     let preview = try fixture.success(["skills", "update"]).stdout
     #expect(preview.hasPrefix("~ changed  pdf  "))
     try Data("# Claude Guide\n\nCustom notes.\n".utf8).write(
@@ -220,7 +215,7 @@ struct HumanExecutableTests {
     #expect(missing.status == 1 && missing.stdout.isEmpty)
     #expect(
       missing.stderr
-        == "Error: No ChatGPT prompt named 'daily' is declared.\n  Declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'.\n"
+        == "Error: No ChatGPT prompt named 'daily' is declared.\n  Declare it with .prompt in the instructions component of Agents.swift and run 'agents instructions update --apply'.\n"
     )
     #expect(!FileManager.default.fileExists(atPath: fixture.state("").path))
     try fixture.instruction()
@@ -237,7 +232,7 @@ struct HumanExecutableTests {
     #expect(unlocked.status == 1)
     #expect(
       unlocked.stderr
-        == "Error: A ChatGPT prompt must have at least one locked section.\n  Declare the ChatGPT prompt in agents.json and run 'agents instructions update --apply'.\n"
+        == "Error: A ChatGPT prompt must have at least one locked section.\n  Declare the ChatGPT prompt in Agents.swift and run 'agents instructions update --apply'.\n"
     )
     let journal = fixture.state("transaction.new")
     try Data("pending".utf8).write(to: journal)

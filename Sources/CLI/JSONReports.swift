@@ -251,7 +251,9 @@ struct CheckItem: Encodable {
   init(_ check: DoctorCheck, environment: RuntimeEnvironment) {
     kind = "skills"
     id = check.id
-    status = check.id == "pending-recovery" ? "error" : check.status.rawValue
+    status =
+      ["pending-recovery", "unresolved-transaction"].contains(check.id)
+      ? "error" : check.status.rawValue
     message =
       check.id == "pending-recovery"
       ? Self.pendingRecoveryMessage(path: check.path, environment: environment) : check.message
@@ -263,7 +265,7 @@ struct CheckItem: Encodable {
     id = diagnostic.kind.rawValue
     switch diagnostic.kind {
     case .invalidTarget, .foreignTarget, .invalidLink, .invalidConfiguration, .stateUnavailable,
-      .pendingRecovery:
+      .pendingRecovery, .unresolvedTransaction:
       status = "error"
     default:
       status = "warning"

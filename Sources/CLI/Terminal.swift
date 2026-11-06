@@ -1,5 +1,6 @@
 import AgentsCore
 import AgentsInstructions
+import AgentsManifest
 import AgentsSkills
 import AgentsUpdates
 import ArgumentParser
@@ -39,7 +40,7 @@ enum Terminal {
       }
       return text
     }
-    var lines = message.components(separatedBy: "\n")
+    var lines = splitLines(message)
     while let last = lines.last, last.allSatisfy({ " \t\r".contains($0) }) {
       lines.removeLast()
     }
@@ -69,7 +70,12 @@ enum Terminal {
   }
 
   static func text(_ text: String) -> String {
-    text.components(separatedBy: "\n").map(line).joined(separator: "\n")
+    splitLines(text).map(line).joined(separator: "\n")
+  }
+
+  /// Splits physical LF scalars, retaining CR content, empty lines and the trailing empty segment.
+  static func splitLines(_ text: String) -> [String] {
+    text.unicodeScalars.split(separator: "\n", omittingEmptySubsequences: false).map { String($0) }
   }
 
   static func failureRemedy(_ error: Error, command: any ParsableCommand) -> String {
@@ -79,6 +85,19 @@ enum Terminal {
     }
     let action: String
     switch error {
+    case is ManifestFailure:
+      action = "fix the reported Agents.swift diagnostics and retry"
+    case CoreError.recoveryPending(let message)
+    where message.hasPrefix("Unresolved transaction conflict"):
+      action = "inspect the retained locations and resolve the transaction conflict before retrying"
+    case CoreError.recoveryPending:
+      action =
+        "run 'agents install' in the same scope (add --scope user for user state) to finish recovery"
+    case CoreError.missingDeclaration:
+      action = "restore Agents.swift from version control before retrying"
+    case CoreError.notFound where command is DumpManifest:
+      action =
+        "create Agents.swift in the selected scope before running 'agents manifest dump --json'"
     case CoreError.transactionRecovered:
       action = "retry the command after other writers finish"
     case CoreError.notFound(let message) where message.hasPrefix("source is not subscribed:"):
@@ -104,7 +123,7 @@ enum Terminal {
     case CoreError.invalidSkill:
       action = "check SKILL.md and existing installations with 'agents doctor'"
     case CoreError.invalidState:
-      action = "check the scope's agents.json, agents.resolved, and recovery journal"
+      action = "check the scope's Agents.swift, agents.resolved, and recovery journal"
     case CoreError.commandFailed:
       action = "check the command arguments and filesystem permissions"
     case InstructionError.unownedTargets:
@@ -128,10 +147,10 @@ enum Terminal {
         "link only to files in the checkout being written, or name the file in text without a link"
     case HumanOutputError.undeclaredPrompt:
       action =
-        "declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'"
+        "declare it with .prompt in the instructions component of Agents.swift and run 'agents instructions update --apply'"
     case InstructionError.emptyPrompt:
       action =
-        "declare the ChatGPT prompt in agents.json and run 'agents instructions update --apply'"
+        "declare the ChatGPT prompt in Agents.swift and run 'agents instructions update --apply'"
     case is InstructionError:
       action = "check the instruction source and target Markdown with 'agents doctor'"
     default:
@@ -141,8 +160,21 @@ enum Terminal {
   }
 
   static func failureMessage(_ error: Error) -> String {
-    guard let error = error as? UpdateApplyError else { return String(describing: error) }
-    return updateFailureMessage(error.disposition, underlyingError: error.underlyingError)
+    if let error = error as? UpdateApplyError {
+      return updateFailureMessage(error.disposition, underlyingError: error.underlyingError)
+    }
+    if let failure = error as? ManifestFailure {
+      return failure.diagnostics.map { diagnostic in
+        let span = diagnostic.span
+        let primary =
+          "\(span.document.rawValue):\(span.line):\(span.column): \(diagnostic.severity.rawValue) [\(diagnostic.code)]: \(diagnostic.message)"
+        let related = diagnostic.related.map {
+          "\($0.document.rawValue):\($0.line):\($0.column): related location"
+        }
+        return ([primary] + related).joined(separator: "\n")
+      }.joined(separator: "\n")
+    }
+    return String(describing: error)
   }
 
   static func updateFailureMessage(_ disposition: UpdateApplyDisposition, underlyingError: Error)
@@ -154,7 +186,7 @@ enum Terminal {
     case .committed: outcome = "Update committed, but a later step failed."
     case .recoveryRequired: outcome = "Update failed; recovery is required."
     }
-    return outcome + "\n" + String(describing: underlyingError)
+    return outcome + "\n" + failureMessage(underlyingError)
   }
 
   static func updateFailureRemedy(

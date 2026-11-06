@@ -2,7 +2,8 @@
 
 `agents` manages declared skills and instructions. Resolution, installation,
 state, and recovery operations use `AgentsCore`, `AgentsSkills`, and
-`AgentsInstructions`; top-level updates use `AgentsUpdates`.
+`AgentsInstructions`; top-level updates use `AgentsUpdates`. `AgentsManifest`
+owns declaration parsing and editing, and the manifest dump contract.
 
 ## Commands
 
@@ -25,13 +26,15 @@ agents watch status [--json] [--scope project|user]
 agents watch diff <source> [name] [--kind skill|instructions|artifact] [--json] [--scope project|user]
 agents watch seen <source> [--revision <rev>] [--scope project|user]
 agents watch remove <source> [--scope project|user]
+agents manifest dump --json [--scope project|user]
 agents install [--json]
 agents update [--apply | --json]
 agents doctor [--root <dir>…] [--json]
 ```
 
 `agents --help`, `agents skills --help`, `agents instructions --help`,
-`agents watch --help`, and each command's `--help` describe their options.
+`agents watch --help`, `agents manifest --help`, and each command's `--help`
+describe their options.
 Running a group without a subcommand prints help, except `agents watch`, which
 runs `watch status` and accepts its options. `agents --version`
 prints `agents X.Y.Z` and is available only on the root command; the version
@@ -64,7 +67,7 @@ Examples:
 | `--mode link\|copy\|edit` | How to install: link (default), copy, or edit (a live link to a local source). | `skills add` |
 | `--root <dir>…` | Audit or map these project directories read-only. Repeat for several. | `doctor`, `instructions export` |
 | `--replace` | Take over target files that agents did not generate. | `instructions add`, `instructions update --apply` |
-| `--json` | Emit a versioned JSON report on stdout | Both kinds' `list`, `install`, `doctor`, all update previews, `instructions export`, `watch status`, `watch diff` |
+| `--json` | Emit a versioned JSON report on stdout | Both kinds' `list`, `install`, `doctor`, all update previews, `instructions export`, `watch status`, `watch diff`; `manifest dump` requires it |
 
 Agents are `codex`, `claude-code`, `cursor`, `gemini-cli`, and `opencode`.
 For instruction recipients, Cursor supports project scope only. ChatGPT is a
@@ -105,16 +108,16 @@ is a usage error.
 Both require a Git repository for local sources and read committed content.
 `edit` links live local directories and accepts no requirement.
 
-Requirement options on add map directly to declaration forms:
+Requirement options on add map to the arguments of `.source` in `Agents.swift`:
 
 | Option | Declaration | Matching versions |
 | --- | --- | --- |
-| `--branch main` | `"branch": "main"` | Git branch |
-| `--revision <rev>` | `"revision": "<rev>"` | Git revision |
-| `--exact 1.2.3` | `"exact": "1.2.3"` | Exact semantic version |
-| `--from 1.2.3` | `"from": "1.2.3"` | At least 1.2.3, below 2.0.0 |
-| `--up-to-next-minor-from 1.2.3` | `"upToNextMinor": "1.2.3"` | At least 1.2.3, below 1.3.0 |
-| `--from 1.2.3 --to 1.8.0` | `"from": "1.2.3", "to": "1.8.0"` | Half-open range [1.2.3, 1.8.0) |
+| `--branch main` | `branch: "main"` | Git branch |
+| `--revision <rev>` | `revision: "<rev>"` | Git revision |
+| `--exact 1.2.3` | `exact: "1.2.3"` | Exact semantic version |
+| `--from 1.2.3` | `from: "1.2.3"` | At least 1.2.3, below 2.0.0 |
+| `--up-to-next-minor-from 1.2.3` | `.upToNextMinor(from: "1.2.3")` | At least 1.2.3, below 1.3.0 |
+| `--from 1.2.3 --to 1.8.0` | `"1.2.3"..<"1.8.0"` | Half-open range [1.2.3, 1.8.0) |
 
 Choose one requirement form; `--to` requires `--from`. With no requirement,
 core uses the latest version tag or the default branch if there are no tags.
@@ -138,7 +141,7 @@ an `@` followed by one of these labels and `:`, so SSH locations such as
 `agents skills add larksuite/cli lark-base --from 1.0.0`. Use at most one
 requirement selector, one `@path:`, and one `@skill:`; percent-encode an `@`
 inside a value as `%40`. A selector and an option that give the same field must
-agree; both replace the branch and path of a hosted tree URL. `agents.json`
+agree; both replace the branch and path of a hosted tree URL. `Agents.swift`
 stores the structured fields, and the alias comes from the location.
 `instructions add` and `watch add` accept requirement and path selectors;
 `@skill:` applies to `skills add` and `skills list <source>`.
@@ -208,24 +211,31 @@ section is placed from its `paths`, so one whose content is not available
 locally, an own file changed since the lock or a source section missing from
 the cache, is listed as unplaced; `agents install` fills the cache.
 
-Declare named ChatGPT prompts in the scope's `agents.json`, using an existing
+Declare named ChatGPT prompts in the scope's `Agents.swift`, using an existing
 source alias (here `rules`):
 
-```json
-{
-  "instructions": {
-    "sections": ["rules:canonical-artifacts"],
-    "chatgpt": {
-      "weekly": {
-        "sections": ["rules:canonical-artifacts"],
-        "append": "prompt-custom.md"
-      }
-    }
-  }
-}
+```swift
+// agents-tools-version: 1.0
+import AgentsDescription
+
+let agents = Agents(
+  sources: [.source(name: "rules", path: "../team-rules")],
+  components: [
+    .instructions(
+      sections: [.section(name: "canonical-artifacts", source: "rules")],
+      chatGPT: [
+        .prompt(
+          name: "weekly",
+          sections: [.section(name: "canonical-artifacts", source: "rules")],
+          append: "prompt-custom.md"
+        ),
+      ]
+    ),
+  ]
+)
 ```
 
-Merge this fragment with the declaration's existing sources and selections.
+Add the `.prompt` to the instructions component's `chatGPT` list.
 `append` is optional and relative to the project root or HOME for user scope.
 Run `agents instructions update` to preview, then `--apply` to lock the prompt.
 `agents instructions render chatgpt weekly` writes the locked sections in
@@ -238,6 +248,23 @@ Update previews and `--apply` list changed prompts. Re-paste changed prompts;
 removed prompts must be cleared in ChatGPT. Core detects changes
 to section bytes, membership, order, or append path. Edits to the append file's
 contents are read at render time and are not tracked as prompt changes.
+
+## Manifest
+
+`manifest dump --json [--scope project|user]` reads the selected scope's existing
+`Agents.swift` under a shared lock and prints core's evaluated JSON bytes.
+`--json` is required. The project root is the current directory; change directory
+to select another project. No `--path`, source argument or `--root` is accepted.
+
+Dump evaluates the local static language without resolving external groups,
+fetching sources or secrets, inspecting native files, or compiling or running
+Swift code. Conditions and group references remain symbolic. It never creates
+state, replays recovery or writes the declaration. A missing file, pending
+recovery, or invalid manifest fails with exit 1 and empty stdout. Syntax, type
+and domain failures include path, line, UTF-8 byte column, severity and stable
+diagnostic code on stderr; related locations follow when available. Invalid
+arguments exit 64. See the [dump contract](ManifestDump.md) for encoding and
+schema ownership.
 
 ## Watch
 
@@ -314,7 +341,7 @@ baselines, installations, or source working trees. Uncommitted source files are
 ignored. Scheduling checks is left to the caller.
 
 Watch baselines live in `.agent/agents.watch` for project scope or
-`~/.agents/agents.watch` for user scope. `agents.json` owns subscriptions.
+`~/.agents/agents.watch` for user scope. `Agents.swift` owns subscriptions.
 A missing subscription suggests `run 'agents watch' to list subscriptions`;
 an invalid revision suggests providing a Git revision that resolves to a commit
 in the watched source. Operation failures exit 1; invalid options and unknown
@@ -537,16 +564,22 @@ current directory and user scope uses HOME.
 
 | Scope | Declaration | Lock | Cache |
 | --- | --- | --- | --- |
-| Project | `.agent/agents.json` | `.agent/agents.resolved` | `.agent/cache/` |
-| User | `~/.agents/agents.json` | `~/.agents/agents.resolved` | `~/.agents/cache/` |
+| Project | `.agent/Agents.swift` | `.agent/agents.resolved` | `.agent/cache/` |
+| User | `~/.agents/Agents.swift` | `~/.agents/agents.resolved` | `~/.agents/cache/` |
 
-A project commits its declaration and lock; the cache stays local. Both files
-are standard JSON in Prettier's default layout, with sorted keys and 80-column
-arrays. Every command that writes state rewrites a file in another layout,
-including the one earlier versions wrote, even when its content is unchanged.
-To normalize a scope in one pass, run `agents instructions update --apply`
-(with `--scope user` for `~/.agents`); it may report no instruction changes
-while rewriting the files.
+A project commits its declaration and lock; the cache stays local. `Agents.swift`
+uses the [manifest language](https://github.com/agents-tools/core/blob/a2d734fb14cf2d93e7ddd8a6087d7c90453abea4/Documentation/Reference/Manifest.md),
+a statically evaluated Swift subset with a required version directive and
+`import AgentsDescription`. Lifecycle commands use core's deployable subset.
+Unsupported deployment constructs produce located diagnostics; dump accepts the
+complete language. Add, remove and recipient edits preserve comments and bytes
+outside the supported edit. If declaration semantics are unchanged, the original
+bytes stay untouched, including authored formatting. An unchanged update also leaves
+lock bytes untouched. The lock remains JSON, formatted by core when it changes.
+
+An empty scope can be inspected without creating state. `manifest dump` requires
+an existing declaration and reports its selected path when absent. Lock or watch
+state without `Agents.swift` is an error; restore the declaration before retrying.
 
 Project roots are the current directory, not a search up the Git ancestry.
 Core resolves installation locations, including `CODEX_HOME`,
@@ -566,6 +599,11 @@ recovery, run `agents install --scope user` for `~/.agents`, or run
 Commands that change a scope finish pending recovery before proceeding. When
 core reports recovery, the CLI prints a notice on stderr and retries that
 operation once. A second recovery or any other failure stops the command.
+When core reports an unresolved transaction conflict, doctor emits error checks
+`unresolved-transaction` (skills) and `unresolvedTransaction` (instructions),
+retains core's owner-action message and locations, and exits 1. Inspect those
+locations and resolve the conflict before retrying. Read operations preserve
+both pending journals and conflicts.
 
 ## Output and Exit Status
 
@@ -587,14 +625,14 @@ including ESC, CR, C1, and bidi controls, use visible escapes:
 
 ```text
 Error: No ChatGPT prompt named 'daily' is declared.
-  Declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'.
+  Declare it with .prompt in the instructions component of Agents.swift and run 'agents instructions update --apply'.
 Error: Unknown option '--all'. Did you mean '--path'?
   Run 'agents --help' for usage.
 ```
 
 Git failures name the operation and source, followed by Git's diagnostics and
-a remedy. For a source alias `missing` declared in `.agent/agents.json` as
-`{"git": "file://localhost/missing/skills.git"}`, a failed add reports:
+a remedy. For a source alias `missing` declared in `.agent/Agents.swift` as
+`.source(name: "missing", url: "file://localhost/missing/skills.git")`, a failed add reports:
 
 ```text
 $ agents skills add missing demo
@@ -624,14 +662,20 @@ Unknown commands and subcommands report `Unknown command '<name>'` and exit
 Command-path validation stops at `--`; leaf command positionals remain arguments.
 
 Doctor's `ok` means there are no error checks; warnings do not make it false.
-Instruction `invalidTarget`, `foreignTarget`, `invalidLink`, `invalidConfiguration`, and
-`stateUnavailable` diagnostics and both pending-recovery findings are errors.
+Instruction `invalidTarget`, `foreignTarget`, `invalidLink`,
+`invalidConfiguration`, `stateUnavailable` and `unresolvedTransaction` diagnostics,
+the skill `unresolved-transaction` check and both pending-recovery findings
+are errors.
 Other instruction diagnostics, including drift and missing targets, are
 warnings. Other skill severities are supplied by core.
 A failed operation emits no successful JSON report. JSON stdout contains only
 one object and a trailing newline; recovery notices remain on stderr.
 
 ## JSON Schemas
+
+The [manifest dump contract](ManifestDump.md) is produced by core and printed
+byte-for-byte, with no CLI wrapper or scope field. The remaining schemas are
+CLI-owned reports, independent of core's state encodings.
 
 Every report has an integer `schemaVersion`: 2 for the update, instruction
 update and install reports, 1 for the others. Object keys are sorted. Arrays
@@ -653,6 +697,7 @@ schema version. Diagnostic IDs are core-defined strings, not a closed enum.
 
 | Command | Schema | Required root fields |
 | --- | --- | --- |
+| `manifest dump --json` | [Manifest dump contract](ManifestDump.md) | Producer-owned language object |
 | `skills list --json` | [Installed list](Schemas/installed-list.schema.json) | `schemaVersion`, `kind: "installed"`, `scope`, `skills` |
 | `skills list <source> --json` | [Source list](Schemas/source-list.schema.json) | `schemaVersion`, `kind: "source"`, `scope`, `source`, `skills` |
 | `update --json`, `skills update --json` | [Update](Schemas/update.schema.json) | `schemaVersion`, `scope`, `changed`, `skills`; top-level update also emits `instructions` |

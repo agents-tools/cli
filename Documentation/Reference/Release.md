@@ -39,7 +39,7 @@ changelog entry in the requirement's final delivery candidate.
 
 ## Verify the Release Commit
 
-The CLI requires macOS 15 or later and Swift 6.3 or later to build. Shared CI
+On macOS, the CLI requires macOS 15 or later and Swift 6.3 or later to build. Shared CI
 compiles and tests only with Xcode 26.6 on `macos-26`.
 
 Use a clean task or detached worktree at the exact merged release candidate.
