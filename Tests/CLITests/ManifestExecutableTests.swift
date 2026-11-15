@@ -8,28 +8,42 @@ struct ManifestExecutableTests {
   func dumpPrintsProducerBytesAndSymbolicValues(_ scope: String) throws {
     let fixture = try CLIFixture()
     let source = """
-      // agents-tools-version: 1.0
-      import AgentsDescription
-      // Keep conditions, external references and runtime values symbolic.
-      let recipients: [Agent] = [.openCode, .codex]
-      let agents = Agents(
-        defaultAgents: recipients,
-        sources: [.source(name: "remote", url: "https://example.invalid/never-fetch.git")],
-        components: [
-          .mcpServer(
-            name: "workspace",
-            transport: .stdio("never-run", environment: ["TOKEN": .secret("token")]),
-            condition: .when(scopes: [.user], platforms: [.linux])
-          ),
-          .command(name: "review", description: "Review", prompt: .file("missing-prompt.md")),
-        ],
-        uses: [.group(name: "external", source: "remote")]
-      )
+      version: 1
+      # Keep conditions, external references and runtime values symbolic.
+      defaultAgents: [opencode, codex]
+      sources:
+        remote:
+          url: https://example.invalid/never-fetch.git
+      components:
+        - kind: mcpServer
+          name: workspace
+          transport:
+            kind: stdio
+            executable: never-run
+            environment:
+              TOKEN: {secret: token}
+          condition: {scopes: [user], platforms: [linux]}
+        - kind: command
+          name: review
+          description: Review
+          prompt: {file: {path: missing-prompt.md}}
+        - kind: lspServer
+          name: swift
+          run: {executable: never-run}
+          languages: {.swift: swift}
+          initializationOptions:
+            whole: 1
+            precise: !!float "1.00"
+        - kind: instructions
+          chatgpt:
+            weekly:
+              sections: [{name: own}]
+      uses: [{group: external, source: remote}]
       """
     try fixture.writeManifest(source, scope: scope)
     // The other scope must not influence selection.
     try fixture.writeManifest("invalid other scope", scope: scope == "user" ? "project" : "user")
-    let url = fixture.state("Agents.swift", scope: scope)
+    let url = fixture.state("agents.yaml", scope: scope)
     let bytes = try Data(contentsOf: url)
     let before = try FileManager.default.subpathsOfDirectory(
       atPath: url.deletingLastPathComponent().path)
@@ -40,18 +54,29 @@ struct ManifestExecutableTests {
     let dump = try result.json()
     #expect(
       Set(dump.keys) == [
-        "schemaVersion", "kind", "languageVersion", "sourceDigest", "declaration", "locations",
+        "schemaVersion", "kind", "format", "manifestVersion", "sourceDigest", "declaration",
+        "locations",
         "diagnostics",
       ])
-    #expect(dump["schemaVersion"] as? Int == 1 && dump["kind"] as? String == "manifest")
-    #expect(dump["languageVersion"] as? String == "1.0")
+    #expect(dump["schemaVersion"] as? Int == 2 && dump["kind"] as? String == "manifest")
+    #expect(dump["format"] as? String == "yaml" && dump["manifestVersion"] as? Int == 1)
     let declaration = try #require(dump["declaration"] as? [String: Any])
-    #expect(declaration["defaultAgents"] as? [String] == ["codex", "opencode"])
+    #expect(declaration["defaultAgents"] as? [String] == ["opencode", "codex"])
     #expect((declaration["uses"] as? [[String: Any]])?.first?["source"] as? String == "remote")
     #expect(
       result.stdout.contains("\"kind\": \"secret\"") && result.stdout.contains("missing-prompt.md"))
     let locations = try #require(dump["locations"] as? [[String: Any]])
     #expect(!locations.isEmpty)
+    #expect(
+      locations.contains {
+        ($0["pointer"] as? String)?.hasPrefix("/components/3/chatGPT/0") == true
+      })
+    let components = try #require(declaration["components"] as? [[String: Any]])
+    let options = try #require(components[2]["initializationOptions"] as? [String: [String: Any]])
+    #expect(options["whole"]?["kind"] as? String == "integer")
+    #expect(options["whole"]?["value"] as? Int == 1)
+    #expect(options["precise"]?["kind"] as? String == "decimal")
+    #expect(options["precise"]?["value"] as? String == "1.00")
     #expect(
       locations.allSatisfy { ($0["span"] as? [String: Any])?["document"] as? String == "manifest" })
     #expect(result.stdout.hasSuffix("\n") && !result.stdout.hasSuffix("\n\n"))
@@ -64,37 +89,25 @@ struct ManifestExecutableTests {
   }
 
   @Test(arguments: [
-    ("import AgentsDescription\nlet agents = Agents()", "manifest.version.missing"),
-    (
-      "// agents-tools-version: 9.0\nimport AgentsDescription\nlet agents = Agents()",
-      "manifest.version.unsupported"
-    ),
-    (
-      "// agents-tools-version: 1.0\nimport AgentsDescription\nlet agents = Agents(unknown: [])",
-      "manifest.call"
-    ),
-    (
-      "// agents-tools-version: 1.0\nimport AgentsDescription\nlet agents = Agents(components: [",
-      "manifest.syntax"
-    ),
-    (
-      "// agents-tools-version: 1.0\nimport AgentsDescription\nprint(\"executed\")\nlet agents = Agents()",
-      "manifest.syntax"
-    ),
+    ("{}", "manifest.schema"),
+    ("version: 2", "manifest.schema"),
+    ("version: 1\nunknown: []", "manifest.schema"),
+    ("version: 1\ncomponents: [", "manifest.syntax"),
+    ("version: 1\ncomponents: {}", "manifest.schema"),
   ])
   func malformedManifestHasLocatedDiagnostics(source: String, code: String) throws {
     let fixture = try CLIFixture()
     try fixture.writeManifest(source)
-    let before = try Data(contentsOf: fixture.state("Agents.swift"))
+    let before = try Data(contentsOf: fixture.state("agents.yaml"))
     let result = try fixture.run(["manifest", "dump", "--json"])
     #expect(result.status == 1 && result.stdout.isEmpty)
-    #expect(result.stderr.contains("Agents.swift:") && result.stderr.contains("[\(code)]"))
-    #expect(result.stderr.hasSuffix("\n  Fix the reported Agents.swift diagnostics and retry.\n"))
+    #expect(result.stderr.contains("agents.yaml:") && result.stderr.contains("[\(code)]"))
+    #expect(result.stderr.hasSuffix("\n  Fix the reported agents.yaml diagnostics and retry.\n"))
     #expect(!result.stderr.contains("ManifestFailure(") && !result.stderr.contains("metrics:"))
-    #expect(try Data(contentsOf: fixture.state("Agents.swift")) == before)
+    #expect(try Data(contentsOf: fixture.state("agents.yaml")) == before)
     #expect(
       try FileManager.default.contentsOfDirectory(atPath: fixture.state("").path) == [
-        "Agents.swift"
+        "agents.yaml"
       ])
   }
 
@@ -105,7 +118,7 @@ struct ManifestExecutableTests {
     #expect(result.status == 1 && result.stdout.isEmpty)
     #expect(
       result.stderr.contains("Not found: declaration at")
-        && result.stderr.contains("Create Agents.swift"))
+        && result.stderr.contains("Create agents.yaml"))
     #expect(!FileManager.default.fileExists(atPath: fixture.state("", scope: scope).path))
   }
 
@@ -143,7 +156,7 @@ struct ManifestExecutableTests {
         "skills", "add", fixture.source.path, "--agent", "codex", "--scope", scope,
       ])
     }
-    try FileManager.default.removeItem(at: fixture.state("Agents.swift", scope: scope))
+    try FileManager.default.removeItem(at: fixture.state("agents.yaml", scope: scope))
     let url = fixture.state(orphan, scope: scope)
     let before = try Data(contentsOf: url)
     let paths = try FileManager.default.subpathsOfDirectory(
@@ -156,7 +169,7 @@ struct ManifestExecutableTests {
       #expect(result.status == 1 && result.stdout.isEmpty)
       #expect(
         result.stderr.contains("Missing declaration at")
-          && result.stderr.contains("Restore Agents.swift"))
+          && result.stderr.contains("Restore agents.yaml"))
       #expect(try Data(contentsOf: url) == before)
       #expect(
         try FileManager.default.subpathsOfDirectory(atPath: fixture.state("", scope: scope).path)
@@ -174,7 +187,7 @@ struct ManifestExecutableTests {
     try Data("incomplete lock".utf8).write(to: lock)
     for missing in [false, true] {
       if missing {
-        try FileManager.default.removeItem(at: fixture.state("Agents.swift", scope: scope))
+        try FileManager.default.removeItem(at: fixture.state("agents.yaml", scope: scope))
       }
       let paths = try FileManager.default.subpathsOfDirectory(
         atPath: fixture.state("", scope: scope).path
@@ -188,7 +201,7 @@ struct ManifestExecutableTests {
           result.stderr.contains("Transaction recovery is pending")
             && !result.stderr.contains("Recovered"))
         #expect(
-          !result.stderr.contains("manifest.syntax")
+          !result.stderr.contains("[manifest.")
             && !result.stderr.contains("Missing declaration"))
         #expect(try Data(contentsOf: journal) == Data("partial journal".utf8))
         #expect(try Data(contentsOf: lock) == Data("incomplete lock".utf8))
@@ -206,25 +219,21 @@ struct ManifestExecutableTests {
     try fixture.instruction()
     try fixture.commit()
     let prefix = """
-      // agents-tools-version: 1.0
-      import AgentsDescription
+      version: 1
 
-      // Team-owned defaults. Keep this spelling and spacing.
-      let team: [Agent] = [.codex]
+      # Team-owned defaults. Keep this spelling and spacing.
+      defaultAgents: [codex]
 
       """
     let manifest =
       prefix + """
-        let agents = Agents(
-          defaultAgents: team,
-          sources: [
-            // Local collection, shared by skills and instructions.
-            .source(name: "rules", path: \(fixture.source.path.debugDescription)),
-          ],
-          components: [], // Deployment list.
-          watch: [] // Observations.
-        )
-        // Keep the footer.
+        sources:
+          # Local collection, shared by skills and instructions.
+          rules:
+            path: \(fixture.source.path.debugDescription)
+        components: [] # Deployment list.
+        watch: [] # Observations.
+        # Keep the footer.
         """
     try fixture.writeManifest(manifest, scope: scope)
     let options = ["--scope", scope]
@@ -236,14 +245,14 @@ struct ManifestExecutableTests {
     ] {
       try fixture.success(command + options)
       let text = try String(
-        contentsOf: fixture.state("Agents.swift", scope: scope), encoding: .utf8)
+        contentsOf: fixture.state("agents.yaml", scope: scope), encoding: .utf8)
       #expect(text.hasPrefix(prefix))
-      #expect(text.contains("// Local collection, shared by skills and instructions."))
+      #expect(text.contains("# Local collection, shared by skills and instructions."))
       #expect(
-        text.contains("// Deployment list.") && text.contains("// Observations.")
-          && text.hasSuffix("// Keep the footer.\n"))
+        text.contains("# Deployment list.") && text.contains("# Observations.")
+          && text.hasSuffix("# Keep the footer.\n"))
     }
-    let files = ["Agents.swift", "agents.resolved", "agents.watch"].map {
+    let files = ["agents.yaml", "agents.resolved", "agents.watch"].map {
       fixture.state($0, scope: scope)
     }
     let before = try files.map { try Data(contentsOf: $0) }
@@ -261,8 +270,8 @@ struct ManifestExecutableTests {
     ] {
       try fixture.success(command + options)
       let text = try String(
-        contentsOf: fixture.state("Agents.swift", scope: scope), encoding: .utf8)
-      #expect(text.hasPrefix(prefix) && text.hasSuffix("// Keep the footer.\n"))
+        contentsOf: fixture.state("agents.yaml", scope: scope), encoding: .utf8)
+      #expect(text.hasPrefix(prefix) && text.hasSuffix("# Keep the footer.\n"))
     }
   }
 
@@ -291,7 +300,7 @@ struct ManifestExecutableTests {
         && !dump.stderr.contains("run 'agents install'"))
     #expect(try Data(contentsOf: journal) == Data("{}".utf8))
     #expect(
-      try String(contentsOf: fixture.state("Agents.swift", scope: scope), encoding: .utf8)
+      try String(contentsOf: fixture.state("agents.yaml", scope: scope), encoding: .utf8)
         == "invalid manifest\n")
   }
 }

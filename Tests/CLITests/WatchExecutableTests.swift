@@ -11,12 +11,12 @@ struct WatchExecutableTests {
     let alias = "example.invalid/rules"
     try fixture.writeManifest(
       """
-      // agents-tools-version: 1.0
-      import AgentsDescription
-      let agents = Agents(sources: [
-        .source(name: \(alias.debugDescription), path: \(fixture.source.path.debugDescription)),
-        .source(name: "remote", url: "https://example.invalid/rules.git"),
-      ])
+      version: 1
+      sources:
+        \(alias.debugDescription):
+          path: \(fixture.source.path.debugDescription)
+        remote:
+          url: https://example.invalid/rules.git
       """)
     let added = try fixture.success(["watch", "add", alias])
     #expect(added.stdout.hasPrefix("Watching local:\(fixture.source.path) from "))
@@ -94,7 +94,7 @@ struct WatchExecutableTests {
     try fixture.commit()
     let current = try fixture.git(["rev-parse", "HEAD"]).stdout.trimmingCharacters(in: .newlines)
     try fixture.skill("uncommitted", container: "collection/skills")
-    let declaration = try Data(contentsOf: fixture.state("Agents.swift", scope: scope))
+    let declaration = try Data(contentsOf: fixture.state("agents.yaml", scope: scope))
     let baseline = try Data(contentsOf: fixture.state("agents.watch", scope: scope))
 
     let expected = """
@@ -156,7 +156,7 @@ struct WatchExecutableTests {
           "watch", "diff", fixture.source.path, "frontend-design", "--kind", "instructions",
         ] + scopeOptions
       ).stdout == "up to date\n")
-    #expect(try Data(contentsOf: fixture.state("Agents.swift", scope: scope)) == declaration)
+    #expect(try Data(contentsOf: fixture.state("agents.yaml", scope: scope)) == declaration)
     #expect(try Data(contentsOf: fixture.state("agents.watch", scope: scope)) == baseline)
     #expect(try Data(contentsOf: fixture.state("agents.resolved", scope: scope)) == lock)
     #expect(try Data(contentsOf: target) == installedBytes)

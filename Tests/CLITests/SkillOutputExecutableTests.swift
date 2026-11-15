@@ -86,7 +86,7 @@ struct SkillOutputExecutableTests {
     try fixture.skill("pdf")
     try fixture.commit()
     try fixture.success(["skills", "add", fixture.source.path, "pdf"])
-    try fixture.declareSkills(agents: "[.codex]")
+    try fixture.declareSkills(agents: "[codex]")
     let revision = try fixture.revision()
     let partial = try fixture.success(["skills", "update", "--apply"]).stdout
     #expect(partial.contains("--- a/pdf/SKILL.md\n+++ /dev/null\n"))
@@ -96,9 +96,7 @@ struct SkillOutputExecutableTests {
         "Removed pdf for claude-code.\nUpdated pdf for codex: \(revision) -> \(revision).\n"))
     try fixture.writeManifest(
       """
-      // agents-tools-version: 1.0
-      import AgentsDescription
-      let agents = Agents()
+      version: 1
       """)
     let removed = try fixture.success(["skills", "update", "--apply"]).stdout
     #expect(removed.contains("--- a/pdf/SKILL.md\n+++ /dev/null\n"))

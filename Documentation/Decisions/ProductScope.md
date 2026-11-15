@@ -35,7 +35,7 @@ with a macOS GUI.
 - **Conventions.** Content keeps its ecosystem formats: a skill is a directory
   with `SKILL.md`, and instructions are Markdown with front matter. A
   repository laid out by those conventions is usable as a source without an
-  `Agents.swift`.
+  `agents.yaml`.
 
 ## Consequences
 

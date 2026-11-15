@@ -111,10 +111,10 @@ agents doctor --root /path/to/project-a /path/to/project-b --json
 agents manifest dump --json
 ```
 
-Declarations live in `.agent/Agents.swift` for project scope or
-`~/.agents/Agents.swift` for user scope. The [manifest language](https://github.com/agents-tools/core/blob/a2d734fb14cf2d93e7ddd8a6087d7c90453abea4/Documentation/Reference/Manifest.md)
-is a statically evaluated Swift subset. `agents manifest dump --json` prints the
-local declaration and its source locations without resolving sources.
+Declarations live in `.agent/agents.yaml` for project scope or
+`~/.agents/agents.yaml` for user scope. The [manifest format](https://github.com/agents-tools/core/blob/bb5c1db909de58a2a4516e45a5b62b662700a14a/Documentation/Reference/Manifest.md)
+uses a versioned YAML mapping. `agents manifest dump --json` prints the
+local declaration as a JSON object with source locations without resolving sources.
 
 Project scope is the default and uses the current directory. User scope is
 selected with `--scope user`. Commands never prompt for confirmation.
@@ -133,7 +133,7 @@ remove, or update sets the recipients of the scope's entire section list.
 `agents instructions init <name>` creates `.agent/instructions/<name>.md`, and
 `agents instructions export` maps locked targets to their sections.
 
-Named ChatGPT prompts are declared in `Agents.swift` and locked with
+Named ChatGPT prompts are declared in `agents.yaml` and locked with
 `agents instructions update --apply`; render emits only their locked sections
 and optional custom content. Updates identify changed prompts to re-paste.
 Top-level `update` previews skills and instructions together and applies them in

@@ -1,12 +1,12 @@
 {
-  "originHash" : "8662b9a0b0d7b9e94cc5cc6f34e86b018aff6cd8ca79826fa6551ceb871a0cd3",
+  "originHash" : "44dc224d35c138055b5bbfdf02f9b4ee6f277658acef1f85e7624173e50ce0d8",
   "pins" : [
     {
       "identity" : "core",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/agents-tools/core.git",
       "state" : {
-        "revision" : "994b82027d12edd3d7c63187a534150086993f7f"
+        "revision" : "bb5c1db909de58a2a4516e45a5b62b662700a14a"
       }
     },
     {
@@ -55,12 +55,12 @@
       }
     },
     {
-      "identity" : "swift-syntax",
+      "identity" : "tree-sitter",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "location" : "https://github.com/tree-sitter/tree-sitter",
       "state" : {
-        "revision" : "050f1a346fbbac0ca2cfb15a95274f7bd1cf0ccf",
-        "version" : "604.0.0"
+        "revision" : "da6fe9beb4f7f67beb75914ca8e0d48ae48d6406",
+        "version" : "0.25.10"
       }
     },
     {

@@ -108,16 +108,17 @@ is a usage error.
 Both require a Git repository for local sources and read committed content.
 `edit` links live local directories and accepts no requirement.
 
-Requirement options on add map to the arguments of `.source` in `Agents.swift`:
+Requirement options on add populate a source's `requirement` mapping in
+`agents.yaml`:
 
 | Option | Declaration | Matching versions |
 | --- | --- | --- |
-| `--branch main` | `branch: "main"` | Git branch |
-| `--revision <rev>` | `revision: "<rev>"` | Git revision |
-| `--exact 1.2.3` | `exact: "1.2.3"` | Exact semantic version |
-| `--from 1.2.3` | `from: "1.2.3"` | At least 1.2.3, below 2.0.0 |
-| `--up-to-next-minor-from 1.2.3` | `.upToNextMinor(from: "1.2.3")` | At least 1.2.3, below 1.3.0 |
-| `--from 1.2.3 --to 1.8.0` | `"1.2.3"..<"1.8.0"` | Half-open range [1.2.3, 1.8.0) |
+| `--branch main` | `requirement: {branch: main}` | Git branch |
+| `--revision <rev>` | `requirement: {revision: "<rev>"}` | Git revision |
+| `--exact 1.2.3` | `requirement: {exact: "1.2.3"}` | Exact semantic version |
+| `--from 1.2.3` | `requirement: {from: "1.2.3"}` | At least 1.2.3, below 2.0.0 |
+| `--up-to-next-minor-from 1.2.3` | `requirement: {upToNextMinor: "1.2.3"}` | At least 1.2.3, below 1.3.0 |
+| `--from 1.2.3 --to 1.8.0` | `requirement: {from: "1.2.3", to: "1.8.0"}` | Half-open range [1.2.3, 1.8.0) |
 
 Choose one requirement form; `--to` requires `--from`. With no requirement,
 core uses the latest version tag or the default branch if there are no tags.
@@ -141,7 +142,7 @@ an `@` followed by one of these labels and `:`, so SSH locations such as
 `agents skills add larksuite/cli lark-base --from 1.0.0`. Use at most one
 requirement selector, one `@path:`, and one `@skill:`; percent-encode an `@`
 inside a value as `%40`. A selector and an option that give the same field must
-agree; both replace the branch and path of a hosted tree URL. `Agents.swift`
+agree; both replace the branch and path of a hosted tree URL. `agents.yaml`
 stores the structured fields, and the alias comes from the location.
 `instructions add` and `watch add` accept requirement and path selectors;
 `@skill:` applies to `skills add` and `skills list <source>`.
@@ -211,31 +212,26 @@ section is placed from its `paths`, so one whose content is not available
 locally, an own file changed since the lock or a source section missing from
 the cache, is listed as unplaced; `agents install` fills the cache.
 
-Declare named ChatGPT prompts in the scope's `Agents.swift`, using an existing
+Declare named ChatGPT prompts in the scope's `agents.yaml`, using an existing
 source alias (here `rules`):
 
-```swift
-// agents-tools-version: 1.0
-import AgentsDescription
-
-let agents = Agents(
-  sources: [.source(name: "rules", path: "../team-rules")],
-  components: [
-    .instructions(
-      sections: [.section(name: "canonical-artifacts", source: "rules")],
-      chatGPT: [
-        .prompt(
-          name: "weekly",
-          sections: [.section(name: "canonical-artifacts", source: "rules")],
-          append: "prompt-custom.md"
-        ),
-      ]
-    ),
-  ]
-)
+```yaml
+version: 1
+sources:
+  rules:
+    path: ../team-rules
+components:
+  - kind: instructions
+    sections:
+      - {name: canonical-artifacts, source: rules}
+    chatgpt:
+      weekly:
+        sections:
+          - {name: canonical-artifacts, source: rules}
+        append: prompt-custom.md
 ```
 
-Add the `.prompt` to the instructions component's `chatGPT` list.
+Add the named prompt to the instructions component's `chatgpt` mapping.
 `append` is optional and relative to the project root or HOME for user scope.
 Run `agents instructions update` to preview, then `--apply` to lock the prompt.
 `agents instructions render chatgpt weekly` writes the locked sections in
@@ -252,17 +248,17 @@ contents are read at render time and are not tracked as prompt changes.
 ## Manifest
 
 `manifest dump --json [--scope project|user]` reads the selected scope's existing
-`Agents.swift` under a shared lock and prints core's evaluated JSON bytes.
+`agents.yaml` under a shared lock and prints core's encoded manifest JSON bytes.
 `--json` is required. The project root is the current directory; change directory
 to select another project. No `--path`, source argument or `--root` is accepted.
 
-Dump evaluates the local static language without resolving external groups,
-fetching sources or secrets, inspecting native files, or compiling or running
-Swift code. Conditions and group references remain symbolic. It never creates
-state, replays recovery or writes the declaration. A missing file, pending
-recovery, or invalid manifest fails with exit 1 and empty stdout. Syntax, type
-and domain failures include path, line, UTF-8 byte column, severity and stable
-diagnostic code on stderr; related locations follow when available. Invalid
+Dump parses the local YAML document without resolving external groups, fetching
+sources or secrets, inspecting native files, or starting configured programs.
+Conditions and group references remain symbolic. It never creates state, replays
+recovery or writes the declaration. A missing file, pending recovery, or invalid
+manifest fails with exit 1 and empty stdout. YAML syntax, schema and domain
+failures include path, line, UTF-8 byte column, severity and stable diagnostic
+code on stderr; related locations follow when available. Invalid
 arguments exit 64. See the [dump contract](ManifestDump.md) for encoding and
 schema ownership.
 
@@ -341,7 +337,7 @@ baselines, installations, or source working trees. Uncommitted source files are
 ignored. Scheduling checks is left to the caller.
 
 Watch baselines live in `.agent/agents.watch` for project scope or
-`~/.agents/agents.watch` for user scope. `Agents.swift` owns subscriptions.
+`~/.agents/agents.watch` for user scope. `agents.yaml` owns subscriptions.
 A missing subscription suggests `run 'agents watch' to list subscriptions`;
 an invalid revision suggests providing a Git revision that resolves to a commit
 in the watched source. Operation failures exit 1; invalid options and unknown
@@ -564,22 +560,25 @@ current directory and user scope uses HOME.
 
 | Scope | Declaration | Lock | Cache |
 | --- | --- | --- | --- |
-| Project | `.agent/Agents.swift` | `.agent/agents.resolved` | `.agent/cache/` |
-| User | `~/.agents/Agents.swift` | `~/.agents/agents.resolved` | `~/.agents/cache/` |
+| Project | `.agent/agents.yaml` | `.agent/agents.resolved` | `.agent/cache/` |
+| User | `~/.agents/agents.yaml` | `~/.agents/agents.resolved` | `~/.agents/cache/` |
 
-A project commits its declaration and lock; the cache stays local. `Agents.swift`
-uses the [manifest language](https://github.com/agents-tools/core/blob/a2d734fb14cf2d93e7ddd8a6087d7c90453abea4/Documentation/Reference/Manifest.md),
-a statically evaluated Swift subset with a required version directive and
-`import AgentsDescription`. Lifecycle commands use core's deployable subset.
-Unsupported deployment constructs produce located diagnostics; dump accepts the
-complete language. Add, remove and recipient edits preserve comments and bytes
-outside the supported edit. If declaration semantics are unchanged, the original
-bytes stay untouched, including authored formatting. An unchanged update also leaves
-lock bytes untouched. The lock remains JSON, formatted by core when it changes.
+A project commits its declaration and lock; the cache stays local. `agents.yaml`
+uses the [manifest format](https://github.com/agents-tools/core/blob/bb5c1db909de58a2a4516e45a5b62b662700a14a/Documentation/Reference/Manifest.md),
+a versioned YAML mapping with required `version: 1`. Sources are named mappings;
+components are ordered sequences. Unknown structural fields produce located
+diagnostics. The declaration schema and parser are owned by core. Lifecycle
+commands use core's deployable subset; unsupported deployment constructs produce
+located diagnostics, while dump accepts the complete format. Add, remove and
+recipient edits preserve comments and bytes outside the supported edit.
+If declaration semantics are unchanged, the original bytes stay untouched,
+including authored formatting. An unchanged update also leaves lock bytes
+untouched. `agents.resolved` remains tool-owned JSON, formatted by core when it
+changes.
 
 An empty scope can be inspected without creating state. `manifest dump` requires
 an existing declaration and reports its selected path when absent. Lock or watch
-state without `Agents.swift` is an error; restore the declaration before retrying.
+state without `agents.yaml` is an error; restore the declaration before retrying.
 
 Project roots are the current directory, not a search up the Git ancestry.
 Core resolves installation locations, including `CODEX_HOME`,
@@ -625,14 +624,14 @@ including ESC, CR, C1, and bidi controls, use visible escapes:
 
 ```text
 Error: No ChatGPT prompt named 'daily' is declared.
-  Declare it with .prompt in the instructions component of Agents.swift and run 'agents instructions update --apply'.
+  Declare it under chatgpt in the instructions component of agents.yaml and run 'agents instructions update --apply'.
 Error: Unknown option '--all'. Did you mean '--path'?
   Run 'agents --help' for usage.
 ```
 
 Git failures name the operation and source, followed by Git's diagnostics and
-a remedy. For a source alias `missing` declared in `.agent/Agents.swift` as
-`.source(name: "missing", url: "file://localhost/missing/skills.git")`, a failed add reports:
+a remedy. For a source alias `missing` declared in `.agent/agents.yaml` as
+`sources: {missing: {url: "file://localhost/missing/skills.git"}}`, a failed add reports:
 
 ```text
 $ agents skills add missing demo
@@ -677,8 +676,8 @@ The [manifest dump contract](ManifestDump.md) is produced by core and printed
 byte-for-byte, with no CLI wrapper or scope field. The remaining schemas are
 CLI-owned reports, independent of core's state encodings.
 
-Every report has an integer `schemaVersion`: 2 for the update, instruction
-update and install reports, 1 for the others. Object keys are sorted. Arrays
+Every report has an integer `schemaVersion`: 2 for the manifest dump, update,
+instruction update and install reports, 1 for the others. Object keys are sorted. Arrays
 follow core's deterministic ordering; instruction section lists preserve
 selection order, targets and prompt names are sorted, and doctor roots retain
 input order.
@@ -697,7 +696,7 @@ schema version. Diagnostic IDs are core-defined strings, not a closed enum.
 
 | Command | Schema | Required root fields |
 | --- | --- | --- |
-| `manifest dump --json` | [Manifest dump contract](ManifestDump.md) | Producer-owned language object |
+| `manifest dump --json` | [Manifest dump contract](ManifestDump.md) | Producer-owned manifest object |
 | `skills list --json` | [Installed list](Schemas/installed-list.schema.json) | `schemaVersion`, `kind: "installed"`, `scope`, `skills` |
 | `skills list <source> --json` | [Source list](Schemas/source-list.schema.json) | `schemaVersion`, `kind: "source"`, `scope`, `source`, `skills` |
 | `update --json`, `skills update --json` | [Update](Schemas/update.schema.json) | `schemaVersion`, `scope`, `changed`, `skills`; top-level update also emits `instructions` |

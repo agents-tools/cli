@@ -18,10 +18,10 @@ can disagree with each other and with any CLI.
   are front ends over core and one shared state. Every GUI operation has a CLI
   command. The GUI links core directly, and the GUI and CLI release together
   at the same version.
-- **No GUI-private state.** Business facts live in `Agents.swift`, the lock and
+- **No GUI-private state.** Business facts live in `agents.yaml`, the lock and
   core-managed state; the GUI keeps only interface preferences. Presets and
   collections are named groups in the manifest. Moving a setup to another
-  machine means syncing `Agents.swift` and the lock and running
+  machine means syncing `agents.yaml` and the lock and running
   `agents install`.
 - **Configuration application.** The GUI shows the concrete configuration
   changes and targets; one confirmation applies them through core. Explicit
@@ -48,7 +48,7 @@ can disagree with each other and with any CLI.
 - **The GUI** lives in its own repository in the agents-tools organization and
   ships as a notarized Homebrew cask.
 - **Usage guidance.** A skill published by the agents-tools organization
-  teaches agents and people to use `agents` and write `Agents.swift`.
+  teaches agents and people to use `agents` and write `agents.yaml`.
 
 ## Consequences
 

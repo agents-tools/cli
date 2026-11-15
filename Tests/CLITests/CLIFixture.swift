@@ -119,21 +119,25 @@ final class CLIFixture {
   }
 
   func writeManifest(_ source: String, scope: String = "project") throws {
-    let url = state("Agents.swift", scope: scope)
+    let url = state("agents.yaml", scope: scope)
     try FileManager.default.createDirectory(
       at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     try Data((source + "\n").utf8).write(to: url)
   }
 
-  func declareSkills(mode: String = "link", agents: String = "[.claudeCode, .codex]") throws {
+  func declareSkills(mode: String = "link", agents: String = "[claude-code, codex]") throws {
     try writeManifest(
       """
-      // agents-tools-version: 1.0
-      import AgentsDescription
-      let agents = Agents(
-        sources: [.source(name: "source", path: \(source.path.debugDescription))],
-        components: [.skills(source: "source", select: ["pdf"], mode: .\(mode), agents: \(agents))]
-      )
+      version: 1
+      sources:
+        source:
+          path: \(source.path.debugDescription)
+      components:
+        - kind: skills
+          source: source
+          select: [pdf]
+          mode: \(mode)
+          agents: \(agents)
       """)
   }
 

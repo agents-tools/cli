@@ -5,17 +5,17 @@ import Foundation
 
 struct Manifest: ParsableCommand {
   static let configuration = CommandConfiguration(
-    commandName: "manifest", abstract: "Inspect the scope's Agents.swift declaration.",
+    commandName: "manifest", abstract: "Inspect the scope's agents.yaml declaration.",
     subcommands: [DumpManifest.self])
 }
 
 struct DumpManifest: ParsableCommand {
   static let configuration = CommandConfiguration(
-    commandName: "dump", abstract: "Print the local manifest's evaluated JSON and source locations."
+    commandName: "dump", abstract: "Print the local manifest's JSON and source locations."
   )
 
   @OptionGroup var location: ScopeOptions
-  @Flag(help: "Print the manifest language JSON contract.") var json = false
+  @Flag(help: "Print the manifest JSON contract.") var json = false
 
   func validate() throws {
     if !json { throw ValidationError("manifest dump requires --json") }

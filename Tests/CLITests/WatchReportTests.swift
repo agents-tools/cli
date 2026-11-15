@@ -16,12 +16,12 @@ struct WatchReportTests {
     try fixture.commit()
     try fixture.writeManifest(
       """
-      // agents-tools-version: 1.0
-      import AgentsDescription
-      let agents = Agents(sources: [
-        .source(name: \(id.debugDescription), path: \(fixture.source.path.debugDescription)),
-        .source(name: "remote", url: "https://example.invalid/rules.git"),
-      ])
+      version: 1
+      sources:
+        \(id.debugDescription):
+          path: \(fixture.source.path.debugDescription)
+        remote:
+          url: https://example.invalid/rules.git
       """)
     let operations = SkillOperations.watchOperations()
     let added = try operations.add(id, environment: environment)

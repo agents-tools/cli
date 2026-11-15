@@ -86,7 +86,7 @@ enum Terminal {
     let action: String
     switch error {
     case is ManifestFailure:
-      action = "fix the reported Agents.swift diagnostics and retry"
+      action = "fix the reported agents.yaml diagnostics and retry"
     case CoreError.recoveryPending(let message)
     where message.hasPrefix("Unresolved transaction conflict"):
       action = "inspect the retained locations and resolve the transaction conflict before retrying"
@@ -94,10 +94,10 @@ enum Terminal {
       action =
         "run 'agents install' in the same scope (add --scope user for user state) to finish recovery"
     case CoreError.missingDeclaration:
-      action = "restore Agents.swift from version control before retrying"
+      action = "restore agents.yaml from version control before retrying"
     case CoreError.notFound where command is DumpManifest:
       action =
-        "create Agents.swift in the selected scope before running 'agents manifest dump --json'"
+        "create agents.yaml in the selected scope before running 'agents manifest dump --json'"
     case CoreError.transactionRecovered:
       action = "retry the command after other writers finish"
     case CoreError.notFound(let message) where message.hasPrefix("source is not subscribed:"):
@@ -123,7 +123,7 @@ enum Terminal {
     case CoreError.invalidSkill:
       action = "check SKILL.md and existing installations with 'agents doctor'"
     case CoreError.invalidState:
-      action = "check the scope's Agents.swift, agents.resolved, and recovery journal"
+      action = "check the scope's agents.yaml, agents.resolved, and recovery journal"
     case CoreError.commandFailed:
       action = "check the command arguments and filesystem permissions"
     case InstructionError.unownedTargets:
@@ -147,10 +147,10 @@ enum Terminal {
         "link only to files in the checkout being written, or name the file in text without a link"
     case HumanOutputError.undeclaredPrompt:
       action =
-        "declare it with .prompt in the instructions component of Agents.swift and run 'agents instructions update --apply'"
+        "declare it under chatgpt in the instructions component of agents.yaml and run 'agents instructions update --apply'"
     case InstructionError.emptyPrompt:
       action =
-        "declare the ChatGPT prompt in Agents.swift and run 'agents instructions update --apply'"
+        "declare the ChatGPT prompt in agents.yaml and run 'agents instructions update --apply'"
     case is InstructionError:
       action = "check the instruction source and target Markdown with 'agents doctor'"
     default:

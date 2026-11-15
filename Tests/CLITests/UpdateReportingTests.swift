@@ -65,9 +65,7 @@ struct UpdateReportingTests {
     #expect(!repinned.contains("mode pdf/"))
     try fixture.writeManifest(
       """
-      // agents-tools-version: 1.0
-      import AgentsDescription
-      let agents = Agents()
+      version: 1
       """)
     let removal = try fixture.success(command + ["--json"]).json()
     let removedSkill = try #require((removal["skills"] as? [[String: Any]])?.first)
@@ -88,7 +86,7 @@ struct UpdateReportingTests {
     let steadySkill = try #require((steady["skills"] as? [[String: Any]])?.first)
     #expect(steadySkill["changed"] as? Bool == false)
     #expect((steadySkill["membership"] as? [Any])?.count == 2)
-    try fixture.declareSkills(mode: "edit", agents: "[.claudeCode, .cursor]")
+    try fixture.declareSkills(mode: "edit", agents: "[claude-code, cursor]")
     let report = try fixture.success(command + ["--json"]).json()
     let skill = try #require((report["skills"] as? [[String: Any]])?.first)
     #expect(skill["oldVersion"] == nil && skill["newVersion"] == nil)
@@ -203,17 +201,17 @@ struct UpdateReportingTests {
     try fixture.declarePrompt()
     try fixture.writeManifest(
       """
-      // agents-tools-version: 1.0
-      import AgentsDescription
-      let agents = Agents(
-        sources: [.source(name: "source", path: \(fixture.source.path.debugDescription))],
-        components: [
-          .instructions(
-            sections: [],
-            chatGPT: [.prompt(name: "weekly", sections: [.section(name: "canonical-artifacts", source: "source")], append: "prompt-custom.md")]
-          )
-        ]
-      )
+      version: 1
+      sources:
+        source:
+          path: \(fixture.source.path.debugDescription)
+      components:
+        - kind: instructions
+          sections: []
+          chatgpt:
+            weekly:
+              sections: [{name: canonical-artifacts, source: source}]
+              append: prompt-custom.md
       """)
     try fixture.success(["update", "--apply"])
     let locked = try Data(contentsOf: fixture.state("agents.resolved"))
@@ -298,7 +296,7 @@ struct UpdateReportingTests {
   @Test(arguments: [
     (
       UpdateApplyDisposition.unchanged, "Update failed; no update was applied.",
-      "Check the scope's Agents.swift, agents.resolved, and recovery journal."
+      "Check the scope's agents.yaml, agents.resolved, and recovery journal."
     ),
     (
       .committed, "Update committed, but a later step failed.",
