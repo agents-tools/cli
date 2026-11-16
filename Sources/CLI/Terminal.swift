@@ -95,8 +95,6 @@ enum Terminal {
         "run 'agents install' in the same scope (add --scope user for user state) to finish recovery"
     case CoreError.missingDeclaration:
       action = "restore agents.yaml from version control before retrying"
-    case CoreError.notFound where command is CheckManifest:
-      action = "create agents.yaml in the selected scope before running 'agents manifest check'"
     case CoreError.notFound where command is DumpManifest:
       action =
         "create agents.yaml in the selected scope before running 'agents manifest dump --json'"

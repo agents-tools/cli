@@ -14,8 +14,6 @@ This directory indexes repository-native documentation for `agents-tools/cli`.
   state locations, and JSON contracts.
 - [Manifest dump](Reference/ManifestDump.md): producer-owned YAML manifest JSON contract
   exposed by `agents manifest dump --json`.
-- [YAML editor setup](Reference/Editors.md): offline schema export and explicit
-  saved-file Core checks, with workspace-only settings and process tasks.
 - [JSON schemas](Reference/Schemas/): machine-readable schemas for list,
   update previews, watch status and diffs, installation, and doctor.
 - [Release checklist](Reference/Release.md): prepare and verify release commits,

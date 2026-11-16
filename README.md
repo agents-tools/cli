@@ -83,9 +83,6 @@ swift build -c release
 ```
 
 To run from this checkout, use `.build/release/agents` or `swift run agents`.
-An installed copy also needs SwiftPM's AgentsManifest resource bundle beside
-the real executable for offline schema export; see
-[editor setup](Documentation/Reference/Editors.md#distribution).
 
 ## Usage
 
@@ -111,8 +108,6 @@ agents skills remove pdf
 agents skills init my-skill
 agents doctor --root /path/to/project-a /path/to/project-b --json
 agents manifest dump --json
-agents manifest schema
-agents manifest check
 ```
 
 Declarations live in `.agent/agents.yaml` for project scope or

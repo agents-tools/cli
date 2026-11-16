@@ -138,13 +138,7 @@ release, or update it for later releases, in an `agents-tools/homebrew-tap` task
 worktree. Set the stable archive URL to the `agents` release and compute SHA-256
 from the exact downloaded archive bytes. Keep HEAD as the development channel.
 Do not infer the archive digest from Git objects. The formula is named `agents`
-and must install the `agents` executable together with SwiftPM's AgentsManifest
-resource bundle. On the verified macOS layout, keep the actual executable and
-resource bundle in `libexec`, with a `bin/agents` exec launcher that invokes the
-real executable path; a binary symlink alone looks for the bundle under `bin`.
-The current tap's executable-only install needs a tap-owner packaging change before schema export is supported.
-Validate `agents manifest schema` from outside the checkout with build-resource
-fallback unavailable, and compare its bytes to the exact core schema resource.
+and installs only the `agents` executable.
 
 Match the formula's macOS requirement to the released CLI's minimum (macOS 15).
 
