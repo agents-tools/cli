@@ -7,9 +7,8 @@ The checker does not inspect an unsaved editor buffer. Save and rerun the task
 after each edit; old task results describe the last checked saved file.
 
 The examples below are workspace settings and process tasks for Cursor or VS
-Code with Red Hat YAML. Actual editor/version verification is separate from CLI
-validation. Choose your project root explicitly. Do not write these examples to
-user-wide settings automatically.
+Code with Red Hat YAML. Choose your project root explicitly. Do not write these
+examples to user-wide settings automatically.
 
 ## Export and Associate the Schema
 
@@ -100,7 +99,7 @@ For the user-scope workspace, change the args to
 
 Replace `/Users/alice` with the intended home; user scope reads
 `HOME/.agents/agents.yaml`, independently of cwd. It does not mean the workspace
-folder is HOME. For isolated editor verification, use the isolated fixture home.
+folder is HOME.
 
 The matcher links absolute paths and **lines only**. UTF-8 byte columns remain
 in the message; they are not editor character columns. Related locations are
@@ -125,7 +124,7 @@ verified macOS layout places the actual executable and
 launcher that invokes that real executable path. A binary symlink alone keeps
 Foundation's bundle lookup under `bin` on the tested macOS runtime.
 
-The existing Homebrew formula installs only the executable; its schema-export
-packaging update must be delivered and verified by the tap owner. Use a source
-build with its resources until that update is available. The CLI does not
+The current Homebrew formula installs only the executable. For schema export,
+run the source-built executable from its build directory with its resource
+bundle, or manually install both using the layout above. The CLI does not
 substitute an embedded second schema or fall back to a network service.
