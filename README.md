@@ -82,8 +82,10 @@ swift build -c release
 .build/release/agents --help
 ```
 
-Place `.build/release/agents` in a directory on your `PATH`. To run from this
-checkout, use `.build/release/agents` or `swift run agents`.
+To run from this checkout, use `.build/release/agents` or `swift run agents`.
+An installed copy also needs SwiftPM's AgentsManifest resource bundle beside
+the real executable for offline schema export; see
+[editor setup](Documentation/Reference/Editors.md#distribution).
 
 ## Usage
 
@@ -109,10 +111,12 @@ agents skills remove pdf
 agents skills init my-skill
 agents doctor --root /path/to/project-a /path/to/project-b --json
 agents manifest dump --json
+agents manifest schema
+agents manifest check
 ```
 
 Declarations live in `.agent/agents.yaml` for project scope or
-`~/.agents/agents.yaml` for user scope. The [manifest format](https://github.com/agents-tools/core/blob/bb5c1db909de58a2a4516e45a5b62b662700a14a/Documentation/Reference/Manifest.md)
+`~/.agents/agents.yaml` for user scope. The [manifest format](https://github.com/agents-tools/core/blob/953bf63f6f0fa9bd468bc72fab1c6cbe1d0fb1da/Documentation/Reference/Manifest.md)
 uses a versioned YAML mapping. `agents manifest dump --json` prints the
 local declaration as a JSON object with source locations without resolving sources.
 

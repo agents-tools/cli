@@ -27,6 +27,8 @@ agents watch diff <source> [name] [--kind skill|instructions|artifact] [--json] 
 agents watch seen <source> [--revision <rev>] [--scope project|user]
 agents watch remove <source> [--scope project|user]
 agents manifest dump --json [--scope project|user]
+agents manifest schema
+agents manifest check [--scope project|user]
 agents install [--json]
 agents update [--apply | --json]
 agents doctor [--root <dir>…] [--json]
@@ -261,6 +263,41 @@ failures include path, line, UTF-8 byte column, severity and stable diagnostic
 code on stderr; related locations follow when available. Invalid
 arguments exit 64. See the [dump contract](ManifestDump.md) for encoding and
 schema ownership.
+
+### Schema and Saved-File Checks
+
+`manifest schema` writes the exact bundled JSON schema bytes to stdout. It has
+no scope or format flags and reads no declaration, state, configuration or
+source. An installed executable must include its SwiftPM resource bundle.
+
+`manifest check [--scope project|user]` reads the saved declaration through
+Core's read-only `loadManifest()`. It does not run recovery, resolve sources or
+providers, inspect native files or start components. Clean success is silent;
+returned warnings appear on stderr with exit 0. Core manifest errors appear on
+stderr with exit 1 and empty stdout. Missing declarations, pending recovery and
+I/O errors are command failures, not invented manifest diagnostics. Invalid
+arguments exit 64. The project root is cwd; user scope uses HOME.
+
+Diagnostic lines have this stable form:
+
+```text
+/absolute/path/agents.yaml:12: error [manifest.scalar]: invalid scalar (UTF-8 byte column 9)
+/absolute/path/agents.yaml:18: info [manifest.scalar]: related location (UTF-8 byte column 3)
+```
+
+The severity and code of primary diagnostics come from Core; related spans use
+`info` with that same code. Lines and UTF-8 byte columns are 1-based. Editor
+matchers use the line, with byte columns retained in the message. Messages are
+single-line escaped. Paths with control characters or line separators use a
+non-clickable `Diagnostic at … (line …)` description, preserving the original
+path visibly without identifying a different file. Other absolute paths retain
+their exact spelling, including Unicode, spaces, colons and brackets.
+
+See [YAML editor setup](Editors.md) for offline local associations and an
+explicit process task. Schema completion/hover/structural checks complement
+saved-file Core validation; neither unsaved Core diagnostics nor exact scalar
+semantics from JSON Schema alone are promised. Dump's byte/schema contract is
+unchanged.
 
 ## Watch
 
@@ -564,7 +601,7 @@ current directory and user scope uses HOME.
 | User | `~/.agents/agents.yaml` | `~/.agents/agents.resolved` | `~/.agents/cache/` |
 
 A project commits its declaration and lock; the cache stays local. `agents.yaml`
-uses the [manifest format](https://github.com/agents-tools/core/blob/bb5c1db909de58a2a4516e45a5b62b662700a14a/Documentation/Reference/Manifest.md),
+uses the [manifest format](https://github.com/agents-tools/core/blob/953bf63f6f0fa9bd468bc72fab1c6cbe1d0fb1da/Documentation/Reference/Manifest.md),
 a versioned YAML mapping with required `version: 1`. Sources are named mappings;
 components are ordered sequences. Unknown structural fields produce located
 diagnostics. The declaration schema and parser are owned by core. Lifecycle
