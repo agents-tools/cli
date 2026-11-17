@@ -127,6 +127,16 @@ struct SkillOutputExecutableTests {
     ])
     let fifo = fixture.project.appendingPathComponent(".agents/skills/broken/fifo")
     try #require(mkfifo(fifo.path, 0o600) == 0)
+    let fifoAttributes = try FileManager.default.attributesOfItem(atPath: fifo.path)
+    let broken = [".agents/skills/broken", ".claude/skills/broken"].map {
+      fixture.project.appendingPathComponent($0)
+    }
+    let brokenFiles = try broken.map {
+      try Data(contentsOf: $0.appendingPathComponent("SKILL.md"))
+    }
+    let brokenEntries = try broken.map {
+      try FileManager.default.contentsOfDirectory(atPath: $0.path).sorted()
+    }
     let list = try fixture.run(["skills", "list"])
     #expect(list.status == 1)
     let before = try fixture.revision()
@@ -138,6 +148,24 @@ struct SkillOutputExecutableTests {
     #expect(updated.hasSuffix("Updated healthy for claude-code, codex: \(before) -> \(after).\n"))
     let removed = try fixture.success(["skills", "remove", "healthy"]).stdout
     #expect(removed == "Removed healthy for claude-code, codex.\n")
+    for path in [".agents/skills/healthy", ".claude/skills/healthy"] {
+      #expect(
+        !FileManager.default.fileExists(atPath: fixture.project.appendingPathComponent(path).path))
+    }
+    for (index, directory) in broken.enumerated() {
+      #expect(
+        try Data(contentsOf: directory.appendingPathComponent("SKILL.md")) == brokenFiles[index])
+      #expect(
+        try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted()
+          == brokenEntries[index])
+    }
+    let currentFIFO = try FileManager.default.attributesOfItem(atPath: fifo.path)
+    #expect(currentFIFO[.type] as? FileAttributeType == fifoAttributes[.type] as? FileAttributeType)
+    #expect(
+      currentFIFO[.posixPermissions] as? NSNumber == fifoAttributes[.posixPermissions] as? NSNumber)
+    #expect(
+      currentFIFO[.systemFileNumber] as? NSNumber == fifoAttributes[.systemFileNumber] as? NSNumber)
+    #expect(currentFIFO[.systemNumber] as? NSNumber == fifoAttributes[.systemNumber] as? NSNumber)
   }
 
   @Test(arguments: ["update", "remove"])

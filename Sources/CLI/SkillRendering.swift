@@ -189,22 +189,7 @@ struct SkillOutputInventory {
 
   static func read(scope: InstallScope, agents: [AgentID]? = nil) -> Self {
     // Mutation owns recovery; withRecovery captures this snapshot again on retry.
-    if let installations = try? SkillOperations.listManaged(scope: scope, agents: agents) {
-      var result = Self()
-      for install in installations {
-        result.modes[install.name, default: [:]][install.agent.rawValue] = install.mode
-      }
-      return result
-    }
-    // Inventory hashes installed content, so unrelated unreadable content can fail
-    // it even when a removal succeeds. Locked recipients remain
-    // useful for presentation; read them without triggering state recovery.
-    let url = StateStore(scope: scope).resolvedURL
-    guard let metadata = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey]),
-      metadata.isRegularFile == true, metadata.isSymbolicLink != true,
-      let data = try? Data(contentsOf: url),
-      let lock = try? JSONDecoder().decode(ResolvedState.self, from: data)
-    else { return Self() }
+    guard let lock = try? StateStore(scope: scope).loadResolved() else { return Self() }
     return Self(
       modes: lock.skills.mapValues { skill in
         skill.installs.filter { raw, _ in
