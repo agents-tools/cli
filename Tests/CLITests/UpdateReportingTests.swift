@@ -139,7 +139,7 @@ struct UpdateReportingTests {
     #expect(preview.contains("  + added  codex (edit)  .agents/skills/pdf\n"))
     let failed = try fixture.run(command + ["--apply"])
     #expect(failed.status == 1 && failed.stdout.isEmpty)
-    #expect(failed.stderr.contains("this scope does not manage"))
+    #expect(failed.stderr.contains("unmanaged content"))
     #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.resolved").path))
   }
 

@@ -75,6 +75,7 @@ struct UpdateReport: Encodable {
   let instructions: InstructionChanges?
 
   let lockMissing: Bool?
+  let components: [ComponentChangeItem]?
 
   init(scope: String, results: [UpdateResult]) {
     self.scope = scope
@@ -82,6 +83,7 @@ struct UpdateReport: Encodable {
     skills = results.map(UpdateItem.init)
     instructions = nil
     lockMissing = nil
+    components = nil
   }
 
   init(_ report: CombinedUpdateReport) {
@@ -90,6 +92,7 @@ struct UpdateReport: Encodable {
     skills = report.skills.map(UpdateItem.init)
     instructions = InstructionChanges(report.instructions)
     lockMissing = report.lockMissing
+    components = report.components.map(ComponentChangeItem.init)
   }
 }
 
@@ -230,13 +233,14 @@ struct DoctorRoot: Encodable {
 
   init(
     root: String, scope: String, report: DoctorReport, instructions: InstructionDoctorReport,
-    environment: RuntimeEnvironment
+    environment: RuntimeEnvironment, inventory: ScopeInspection? = nil
   ) {
     self.root = root
     self.scope = scope
     checks =
       report.checks.map { CheckItem($0, environment: environment) }
       + instructions.diagnostics.map { CheckItem($0, environment: environment) }
+      + (inventory.map { CheckItem.inventory($0, environment: environment) } ?? [])
     ok = !checks.contains { $0.status == "error" }
   }
 }
@@ -275,6 +279,41 @@ struct CheckItem: Encodable {
       ? Self.pendingRecoveryMessage(path: diagnostic.path?.path, environment: environment)
       : diagnostic.message
     path = diagnostic.path?.path
+  }
+
+  init(kind: String, id: String, status: String, message: String, path: String?) {
+    self.kind = kind
+    self.id = id
+    self.status = status
+    self.message = message
+    self.path = path
+  }
+
+  static func inventory(_ inspection: ScopeInspection, environment: RuntimeEnvironment)
+    -> [CheckItem]
+  {
+    if inspection.recovery.pending {
+      return [
+        .init(
+          kind: "components",
+          id: inspection.recovery.requiresOwner ? "unresolved-transaction" : "pending-recovery",
+          status: "error",
+          message: inspection.recovery.requiresOwner
+            ? (inspection.recovery.diagnostic ?? "Transaction recovery requires owner action")
+            : pendingRecoveryMessage(
+              path: StateStore(scope: inspection.scope, environment: environment).directory.path,
+              environment: environment),
+          path: StateStore(scope: inspection.scope, environment: environment).directory.path)
+      ]
+    }
+    let owners = Set(
+      inspection.components.filter { $0.kind != .skills && $0.kind != .instructions }.map(\.record))
+    return inspection.deployments.filter { !owners.isDisjoint(with: $0.ownerRecords) }.map {
+      .init(
+        kind: "components", id: $0.format, status: $0.status == .current ? "ok" : "error",
+        message: $0.diagnostic ?? "Managed deployment is \($0.status.rawValue)",
+        path: $0.location.path)
+    }
   }
 
   private static func pendingRecoveryMessage(path: String?, environment: RuntimeEnvironment)

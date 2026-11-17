@@ -344,6 +344,7 @@ enum Terminal {
       write("No changes.\n")
       return
     }
+    componentChanges(report.components, paths: paths, applied: false)
     let skills = report.skills
     let instructions = report.instructions
     missingSkillLock(report.lockMissing && !skills.isEmpty)

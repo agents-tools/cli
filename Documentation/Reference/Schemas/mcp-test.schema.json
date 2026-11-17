@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Explicit MCP test, version 1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "mcp-test"
+    },
+    "transport": {
+      "enum": [
+        "stdio",
+        "streamableHTTP",
+        "sse"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "discovered",
+        "noTools",
+        "incomplete",
+        "failed"
+      ]
+    },
+    "issue": {
+      "type": "string"
+    },
+    "negotiatedVersion": {
+      "type": "string"
+    },
+    "cleanupComplete": {
+      "type": "boolean"
+    },
+    "elapsed": {
+      "type": "number",
+      "minimum": 0
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "transport",
+    "outcome",
+    "cleanupComplete",
+    "elapsed",
+    "tools"
+  ]
+}

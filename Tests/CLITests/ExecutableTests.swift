@@ -50,7 +50,7 @@ struct ExecutableTests {
     let preview = try fixture.success(["update", "--json"] + scopeArguments).json()
     #expect(
       Set(preview.keys) == [
-        "schemaVersion", "scope", "changed", "skills", "instructions", "lockMissing",
+        "schemaVersion", "scope", "changed", "skills", "instructions", "lockMissing", "components",
       ])
     #expect(preview["schemaVersion"] as? Int == 2 && preview["changed"] as? Bool == true)
     let updates = try #require(preview["skills"] as? [[String: Any]])
@@ -227,10 +227,13 @@ struct ExecutableTests {
         let roots = try #require(report["roots"] as? [[String: Any]])
         #expect(roots.count == 1 && roots.first?["ok"] as? Bool == false)
         let checks = try #require(roots.first?["checks"] as? [[String: Any]])
-        #expect(checks.count == 2)
-        #expect(checks.compactMap { $0["kind"] as? String } == ["skills", "instructions"])
+        #expect(checks.count == 3)
         #expect(
-          checks.compactMap { $0["id"] as? String } == ["pending-recovery", "pendingRecovery"])
+          checks.compactMap { $0["kind"] as? String } == ["skills", "instructions", "components"])
+        #expect(
+          checks.compactMap { $0["id"] as? String } == [
+            "pending-recovery", "pendingRecovery", "pending-recovery",
+          ])
         for check in checks {
           #expect(Set(check.keys) == ["kind", "id", "status", "message", "path"])
           #expect(check["status"] as? String == "error")
@@ -399,7 +402,7 @@ struct ExecutableTests {
     let result = try fixture.success(["--help"])
     #expect(
       result.stdout.contains(
-        "OVERVIEW: Manage agent skills and instructions from declared sources."))
+        "OVERVIEW: Manage agent components from declared sources."))
     #expect(
       result.stdout.contains(
         """

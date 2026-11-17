@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Producer import inspection, version 1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "import"
+    },
+    "format": {
+      "type": "string"
+    },
+    "producerRevision": {
+      "type": "string"
+    },
+    "specificationStatus": {
+      "type": "string"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "alias": {
+            "type": "string"
+          },
+          "document": {
+            "type": "string"
+          },
+          "pointer": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "developmentOnly": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "alias",
+          "document",
+          "pointer",
+          "developmentOnly"
+        ]
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "string"
+          },
+          "pointer": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "document",
+          "pointer",
+          "kind"
+        ]
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "document": {
+            "type": "string"
+          },
+          "pointer": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "document",
+          "pointer",
+          "message"
+        ]
+      }
+    },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "string"
+          },
+          "pointer": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "environmentVariable": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "document",
+          "pointer",
+          "reason"
+        ]
+      }
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "hash": {
+            "type": "string"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "requiresStandaloneSource": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "selected",
+          "requiresStandaloneSource"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "format",
+    "specificationStatus",
+    "sources",
+    "components",
+    "diagnostics",
+    "bindings",
+    "resources"
+  ]
+}

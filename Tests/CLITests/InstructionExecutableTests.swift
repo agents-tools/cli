@@ -449,7 +449,8 @@ struct InstructionExecutableTests {
       })
     let lock = try Data(contentsOf: fixture.state("agents.resolved"))
     let restored = try fixture.success(["install", "--json"]).json()
-    #expect(Set(restored.keys) == ["schemaVersion", "scope", "skills", "instructions"])
+    #expect(
+      Set(restored.keys) == ["schemaVersion", "scope", "skills", "instructions", "components"])
     #expect((restored["skills"] as? [[String: Any]])?.first?["name"] as? String == "demo")
     #expect((restored["instructions"] as? [String: Any])?["changed"] as? Bool == true)
     #expect(try Data(contentsOf: target) == originalTarget)

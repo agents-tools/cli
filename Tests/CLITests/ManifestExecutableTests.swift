@@ -287,7 +287,7 @@ struct ManifestExecutableTests {
     let checks = try #require(roots.first?["checks"] as? [[String: Any]])
     #expect(
       checks.compactMap { $0["id"] as? String } == [
-        "unresolved-transaction", "unresolvedTransaction",
+        "unresolved-transaction", "unresolvedTransaction", "unresolved-transaction",
       ])
     #expect(checks.allSatisfy { $0["status"] as? String == "error" })
     #expect(

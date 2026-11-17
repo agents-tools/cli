@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Skill and instruction diagnosis, version 1",
+  "title": "Managed component diagnosis, version 1",
   "type": "object",
   "properties": {
     "schemaVersion": {
@@ -51,7 +51,8 @@
                 "kind": {
                   "enum": [
                     "skills",
-                    "instructions"
+                    "instructions",
+                    "components"
                   ]
                 }
               },

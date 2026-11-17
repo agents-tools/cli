@@ -14,7 +14,7 @@ enum BuildInfo {
 struct Agents: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "agents",
-    abstract: "Manage agent skills and instructions from declared sources.",
+    abstract: "Manage agent components from declared sources.",
     discussion: """
       Examples:
         agents skills add github.com/owner/skills pdf-forms
@@ -27,7 +27,7 @@ struct Agents: ParsableCommand {
       """,
     subcommands: [
       Skills.self, InstructionsCommand.self, Watch.self, Manifest.self, Install.self, Update.self,
-      Doctor.self,
+      Doctor.self, ComponentsCommand.self, ImportCommand.self, MCPCommand.self,
     ]
   )
 
@@ -49,7 +49,7 @@ struct Skills: ParsableCommand {
 
 @main
 enum EntryPoint {
-  static func main() {
+  static func main() async {
     var command: any ParsableCommand
     do {
       let arguments = Array(CommandLine.arguments.dropFirst())
@@ -70,7 +70,11 @@ enum EntryPoint {
       exit(64)
     }
     do {
-      try command.run()
+      if var asynchronous = command as? any AsyncParsableCommand {
+        try await asynchronous.run()
+      } else {
+        try command.run()
+      }
     } catch {
       // Help requests from a command group are successful parser exits.
       if Agents.exitCode(for: error) == .success {

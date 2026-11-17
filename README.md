@@ -7,7 +7,7 @@
 <h1 align="center">agents</h1>
 
 <p align="center">
-  Install and update agent skills and instructions, resolved to exact versions.
+  Manage agent components from declared sources, resolved to exact versions.
 </p>
 
 <p align="center">
@@ -30,9 +30,9 @@
 
 ## Overview
 
-Declare skills and instruction sections once, restore their locked content with
-`install`, and preview upstream changes before applying an update. `agents`
-supports Codex, Claude Code, Cursor, Gemini CLI, and OpenCode through
+Declare skills, instructions, commands, subagents, MCP servers and settings once,
+restore their locked content with `install`, and preview changes before applying
+an update. `agents` supports Codex, Claude Code, Cursor, Gemini CLI, and OpenCode through
 [agents-tools/core](https://github.com/agents-tools/core).
 
 The executable owns commands and terminal presentation. Core owns source
@@ -108,10 +108,17 @@ agents skills remove pdf
 agents skills init my-skill
 agents doctor --root /path/to/project-a /path/to/project-b --json
 agents manifest dump --json
+agents components list --json
+agents components list /path/to/source --alias team --group tools --json
+agents components add /path/to/source --alias team --group tools
+agents components remove review --kind command
+agents import review.md --root /path/to/source --format claudeCommandV1
+agents import review.md --root /path/to/source --format claudeCommandV1 --apply
+agents mcp test local-tools --binding token=TOOLS_TOKEN --json
 ```
 
 Declarations live in `.agent/agents.yaml` for project scope or
-`~/.agents/agents.yaml` for user scope. The [manifest format](https://github.com/agents-tools/core/blob/953bf63f6f0fa9bd468bc72fab1c6cbe1d0fb1da/Documentation/Reference/Manifest.md)
+`~/.agents/agents.yaml` for user scope. The [manifest format](https://github.com/agents-tools/core/blob/c5e7f2d2dce85d42ddc2d14f93dc665005acf937/Documentation/Reference/Manifest.md)
 uses a versioned YAML mapping. `agents manifest dump --json` prints the
 local declaration as a JSON object with source locations without resolving sources.
 
@@ -135,9 +142,22 @@ remove, or update sets the recipients of the scope's entire section list.
 Named ChatGPT prompts are declared in `agents.yaml` and locked with
 `agents instructions update --apply`; render emits only their locked sections
 and optional custom content. Updates identify changed prompts to re-paste.
-Top-level `update` previews skills and instructions together and applies them in
-one transaction. `install` and `doctor` process skills then instructions.
-All three support combined `--json` reports.
+Top-level `update` previews all declared components and applies them in one
+transaction. `install` restores the exact locked components in one transaction;
+`doctor` audits managed deployments without recovery or writes. All three
+support combined `--json` reports.
+
+`components list` inspects current components or discovers an exported source
+group. `components add` applies that group; `components remove` uses an exact
+managed identity and optional occurrence when names are ambiguous. Producer-owned
+members remain editable at their declaring source. `import` previews an explicit
+producer document and applies its canonical intent only with `--apply`.
+
+`mcp test` explicitly starts or contacts one selected managed MCP server and
+discovers its tools. Runtime bindings use repeated `--binding NAME=ENV_VAR`
+mappings on apply or test commands. Values are read only when Core requests that
+symbolic binding and are not included in reports. See the [CLI reference](Documentation/Reference/CLI.md)
+for supported profiles, selection options and report schemas.
 
 ## Requirements
 
