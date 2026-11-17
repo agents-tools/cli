@@ -606,9 +606,10 @@ for an edited target it keeps.
 
 `install` restores all components in one transaction, using exact locked pins,
 hashes, modes, and recipients. It does not resolve newer versions and takes no
-source argument. Unavailable pins, content that fails digest verification, and
-own instructions files changed since the lock cause failure; run
-`agents instructions update --apply` to record an edited own file.
+source argument. Unavailable pins and content that fails digest verification cause
+failure. Own instructions are restored from their locked content; edits to their
+source files remain untouched and doctor reports them as changed. Run
+`agents instructions update --apply` to adopt those edits into the lock and targets.
 
 `skills remove` requires names and removes their declarations, files, and lock entries.
 With `--agent`, it removes only those recipients. Removing a member of an `all`

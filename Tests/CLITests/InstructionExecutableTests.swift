@@ -280,15 +280,26 @@ struct InstructionExecutableTests {
         == generated(["# guide\n\nWrite the instructions here."]))
     let declaration = try fixture.declaration()
     #expect(try declaration.instructions?.sections == ["guide"])
-    try Data(
-      "---\ndescription: Guide.\n---\n# guide\n\nEdited instructions.\n".utf8
-    ).write(to: own)
-    let install = try fixture.run(["install"])
+    let frozen = try Data(contentsOf: target)
+    let lock = try Data(contentsOf: fixture.state("agents.resolved"))
+    let edited = Data("---\ndescription: Guide.\n---\n# guide\n\nEdited instructions.\n".utf8)
+    try edited.write(to: own)
+    try FileManager.default.removeItem(at: target)
+    try fixture.success(["install"])
+    #expect(try Data(contentsOf: target) == frozen)
+    #expect(try Data(contentsOf: own) == edited)
+    #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
+    let doctor = try fixture.run(["doctor", "--json"])
+    #expect(doctor.status == 0 && doctor.stderr.isEmpty)
+    let roots = try #require(try doctor.json()["roots"] as? [[String: Any]])
+    let checks = try #require(roots.first?["checks"] as? [[String: Any]])
     #expect(
-      install.status == 1
-        && install.stderr.hasSuffix(
-          "\n  Run 'agents instructions update --apply' to regenerate targets from the edited file.\n"
-        ))
+      checks.contains {
+        $0["id"] as? String == "ownChanged" && $0["status"] as? String == "warning"
+          && $0["path"] as? String == own.path
+      })
+    #expect(try Data(contentsOf: own) == edited)
+    #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
     try fixture.success(["instructions", "update", "--apply"])
     #expect(try String(contentsOf: target, encoding: .utf8).contains("Edited instructions."))
     let other = fixture.root.appendingPathComponent("other")

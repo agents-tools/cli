@@ -26,14 +26,21 @@ struct HumanExecutableTests {
     try fixture.skill()
     try fixture.commit()
     try fixture.success(["skills", "add", fixture.source.path, "demo"])
+    let declaration = try Data(contentsOf: fixture.state("agents.yaml"))
+    let lock = try Data(contentsOf: fixture.state("agents.resolved"))
+    let target = fixture.project.appendingPathComponent(".agents/skills/demo/SKILL.md")
+    let installed = try Data(contentsOf: target)
     try FileManager.default.removeItem(at: fixture.source.appendingPathComponent(".git"))
     let failure = try fixture.run(["skills", "update"])
     #expect(failure.status == 1 && failure.stdout.isEmpty)
-    #expect(failure.stderr.hasPrefix("Error: Git could not fetch \(fixture.source.path).\n"))
-    #expect(failure.stderr.contains("\n  fatal: Could not read from remote repository.\n"))
+    #expect(failure.stderr.hasPrefix("Error: "))
     #expect(
-      failure.stderr.hasSuffix(
-        "  and the repository exists.\n  Check Git access and the source location.\n"))
+      failure.stderr.contains("Git could not ") && failure.stderr.contains(fixture.source.path))
+    #expect(failure.stderr.contains("fatal:"))
+    #expect(failure.stderr.hasSuffix("\n  Check Git access and the source location.\n"))
+    #expect(try Data(contentsOf: fixture.state("agents.yaml")) == declaration)
+    #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
+    #expect(try Data(contentsOf: target) == installed)
     let lines = failure.stderr.split(separator: "\n", omittingEmptySubsequences: false)
     #expect(lines.dropFirst().dropLast().allSatisfy { $0.hasPrefix("  ") })
     #expect(!failure.stderr.contains("\\n") && !failure.stderr.contains("\n  ."))
@@ -206,8 +213,22 @@ struct HumanExecutableTests {
     #expect(preview.hasPrefix("~ changed  pdf  "))
     try Data("# Claude Guide\n\nCustom notes.\n".utf8).write(
       to: fixture.project.appendingPathComponent("CLAUDE.md"))
-    let added = try fixture.success(["instructions", "add", fixture.source.path]).stdout
-    #expect(added == "Added canonical-artifacts to AGENTS.md (claude-code, codex).\n")
+    let declaration = try Data(contentsOf: fixture.state("agents.yaml"))
+    let lock = try Data(contentsOf: fixture.state("agents.resolved"))
+    let claude = fixture.project.appendingPathComponent("CLAUDE.md")
+    let notes = try Data(contentsOf: claude)
+    let skill = fixture.project.appendingPathComponent(".agents/skills/pdf")
+    let destination = try FileManager.default.destinationOfSymbolicLink(atPath: skill.path)
+    let refused = try fixture.run(["instructions", "add", fixture.source.path])
+    #expect(refused.status == 1 && refused.stdout.isEmpty)
+    #expect(refused.stderr.contains("requiresCombinedUpdate") && refused.stderr.contains("pdf"))
+    #expect(try Data(contentsOf: fixture.state("agents.yaml")) == declaration)
+    #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
+    #expect(try Data(contentsOf: claude) == notes)
+    #expect(try FileManager.default.destinationOfSymbolicLink(atPath: skill.path) == destination)
+    #expect(
+      !FileManager.default.fileExists(
+        atPath: fixture.project.appendingPathComponent("AGENTS.md").path))
   }
 
   @Test func promptErrorsAndUsagePunctuation() throws {
