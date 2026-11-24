@@ -1,8 +1,10 @@
 # CLI Reference
 
-`agents` manages declared skills and instructions. Resolution, installation,
+`agents` manages declared agent components. Resolution, installation,
 state, and recovery operations use `AgentsCore`, `AgentsSkills`, and
-`AgentsInstructions`; top-level updates use `AgentsUpdates`.
+`AgentsInstructions`; combined lifecycle, component inspection, import and MCP
+tests use `AgentsUpdates`. `AgentsManifest`
+owns declaration parsing and editing, and the manifest dump contract.
 
 ## Commands
 
@@ -25,19 +27,26 @@ agents watch status [--json] [--scope project|user]
 agents watch diff <source> [name] [--kind skill|instructions|artifact] [--json] [--scope project|user]
 agents watch seen <source> [--revision <rev>] [--scope project|user]
 agents watch remove <source> [--scope project|user]
-agents install [--json]
-agents update [--apply | --json]
+agents components list [<source> --group <group> --alias <alias>] [--json] [--scope project|user]
+agents components add <source> --group <group> [--alias <alias>] [--binding NAME=ENV_VAR] [--scope project|user]
+agents components remove <name> [--kind <kind>] [--identity <id>] [--occurrence <id>] [--agent <agent>] [--binding NAME=ENV_VAR] [--scope project|user]
+agents import <document> --format <profile> [--root <directory>] [--select <member>] [--apply | --json] [--binding NAME=ENV_VAR] [--scope project|user]
+agents mcp test <name> [--kind mcpServer] [--identity <id>] [--occurrence <id>] [--binding NAME=ENV_VAR] [--json] [--scope project|user]
+agents manifest dump --json [--scope project|user]
+agents install [--json] [--binding NAME=ENV_VAR]
+agents update [--apply | --json] [--binding NAME=ENV_VAR] [--replace] [--changing-access]
 agents doctor [--root <dir>…] [--json]
 ```
 
 `agents --help`, `agents skills --help`, `agents instructions --help`,
-`agents watch --help`, and each command's `--help` describe their options.
+`agents watch --help`, `agents manifest --help`, and each command's `--help`
+describe their options.
 Running a group without a subcommand prints help, except `agents watch`, which
 runs `watch status` and accepts its options. `agents --version`
 prints `agents X.Y.Z` and is available only on the root command; the version
 constant lives in `Sources/CLI/EntryPoint.swift`.
 
-Root overview: "Manage agent skills and instructions from declared sources."
+Root overview: "Manage agent components from declared sources."
 Root help includes:
 
 ```text
@@ -64,7 +73,7 @@ Examples:
 | `--mode link\|copy\|edit` | How to install: link (default), copy, or edit (a live link to a local source). | `skills add` |
 | `--root <dir>…` | Audit or map these project directories read-only. Repeat for several. | `doctor`, `instructions export` |
 | `--replace` | Take over target files that agents did not generate. | `instructions add`, `instructions update --apply` |
-| `--json` | Emit a versioned JSON report on stdout | Both kinds' `list`, `install`, `doctor`, all update previews, `instructions export`, `watch status`, `watch diff` |
+| `--json` | Emit a versioned JSON report on stdout | Both kinds' `list`, `install`, `doctor`, all update previews, `instructions export`, `watch status`, `watch diff`; `manifest dump` requires it |
 
 Agents are `codex`, `claude-code`, `cursor`, `gemini-cli`, and `opencode`.
 For instruction recipients, Cursor supports project scope only. ChatGPT is a
@@ -105,16 +114,17 @@ is a usage error.
 Both require a Git repository for local sources and read committed content.
 `edit` links live local directories and accepts no requirement.
 
-Requirement options on add map directly to declaration forms:
+Requirement options on add populate a source's `requirement` mapping in
+`agents.yaml`:
 
 | Option | Declaration | Matching versions |
 | --- | --- | --- |
-| `--branch main` | `"branch": "main"` | Git branch |
-| `--revision <rev>` | `"revision": "<rev>"` | Git revision |
-| `--exact 1.2.3` | `"exact": "1.2.3"` | Exact semantic version |
-| `--from 1.2.3` | `"from": "1.2.3"` | At least 1.2.3, below 2.0.0 |
-| `--up-to-next-minor-from 1.2.3` | `"upToNextMinor": "1.2.3"` | At least 1.2.3, below 1.3.0 |
-| `--from 1.2.3 --to 1.8.0` | `"from": "1.2.3", "to": "1.8.0"` | Half-open range [1.2.3, 1.8.0) |
+| `--branch main` | `requirement: {branch: main}` | Git branch |
+| `--revision <rev>` | `requirement: {revision: "<rev>"}` | Git revision |
+| `--exact 1.2.3` | `requirement: {exact: "1.2.3"}` | Exact semantic version |
+| `--from 1.2.3` | `requirement: {from: "1.2.3"}` | At least 1.2.3, below 2.0.0 |
+| `--up-to-next-minor-from 1.2.3` | `requirement: {upToNextMinor: "1.2.3"}` | At least 1.2.3, below 1.3.0 |
+| `--from 1.2.3 --to 1.8.0` | `requirement: {from: "1.2.3", to: "1.8.0"}` | Half-open range [1.2.3, 1.8.0) |
 
 Choose one requirement form; `--to` requires `--from`. With no requirement,
 core uses the latest version tag or the default branch if there are no tags.
@@ -138,7 +148,7 @@ an `@` followed by one of these labels and `:`, so SSH locations such as
 `agents skills add larksuite/cli lark-base --from 1.0.0`. Use at most one
 requirement selector, one `@path:`, and one `@skill:`; percent-encode an `@`
 inside a value as `%40`. A selector and an option that give the same field must
-agree; both replace the branch and path of a hosted tree URL. `agents.json`
+agree; both replace the branch and path of a hosted tree URL. `agents.yaml`
 stores the structured fields, and the alias comes from the location.
 `instructions add` and `watch add` accept requirement and path selectors;
 `@skill:` applies to `skills add` and `skills list <source>`.
@@ -208,24 +218,26 @@ section is placed from its `paths`, so one whose content is not available
 locally, an own file changed since the lock or a source section missing from
 the cache, is listed as unplaced; `agents install` fills the cache.
 
-Declare named ChatGPT prompts in the scope's `agents.json`, using an existing
+Declare named ChatGPT prompts in the scope's `agents.yaml`, using an existing
 source alias (here `rules`):
 
-```json
-{
-  "instructions": {
-    "sections": ["rules:canonical-artifacts"],
-    "chatgpt": {
-      "weekly": {
-        "sections": ["rules:canonical-artifacts"],
-        "append": "prompt-custom.md"
-      }
-    }
-  }
-}
+```yaml
+version: 1
+sources:
+  rules:
+    path: ../team-rules
+components:
+  - kind: instructions
+    sections:
+      - {name: canonical-artifacts, source: rules}
+    chatgpt:
+      weekly:
+        sections:
+          - {name: canonical-artifacts, source: rules}
+        append: prompt-custom.md
 ```
 
-Merge this fragment with the declaration's existing sources and selections.
+Add the named prompt to the instructions component's `chatgpt` mapping.
 `append` is optional and relative to the project root or HOME for user scope.
 Run `agents instructions update` to preview, then `--apply` to lock the prompt.
 `agents instructions render chatgpt weekly` writes the locked sections in
@@ -238,6 +250,102 @@ Update previews and `--apply` list changed prompts. Re-paste changed prompts;
 removed prompts must be cleared in ChatGPT. Core detects changes
 to section bytes, membership, order, or append path. Edits to the append file's
 contents are read at render time and are not tracked as prompt changes.
+
+## Manifest
+
+`manifest dump --json [--scope project|user]` reads the selected scope's existing
+`agents.yaml` under a shared lock and prints core's encoded manifest JSON bytes.
+`--json` is required. The project root is the current directory; change directory
+to select another project. No `--path`, source argument or `--root` is accepted.
+
+Dump parses the local YAML document without resolving external groups, fetching
+sources or secrets, inspecting native files, or starting configured programs.
+Conditions and group references remain symbolic. It never creates state, replays
+recovery or writes the declaration. A missing file, pending recovery, or invalid
+manifest fails with exit 1 and empty stdout. YAML syntax, schema and domain
+failures include path, line, UTF-8 byte column, severity and stable diagnostic
+code on stderr; related locations follow when available. Invalid
+arguments exit 64. See the [dump contract](ManifestDump.md) for encoding and
+schema ownership.
+
+## Components
+
+`components list` inspects the committed scope without resolving sources,
+reading bindings or running recovery. `--json` includes exact logical identities,
+inspection generations and occurrence IDs. A pending transaction fails rather
+than recovering. A missing scope lists no components and creates no state.
+
+`components list <source> --group <group>` discovers a canonical exported group
+without installing it. A source can be an existing alias; a new path or repository
+requires `--alias <name>`. `--path` and the existing source requirement flags
+select the source root and revision. Discovery resolves sources in Core’s
+borrowed source session; it does not deploy components, resolve runtime bindings
+or start programs. The returned graph includes existing scope intent as well as
+the selected group.
+
+`components add` accepts the same source/group options and applies that canonical
+group use. Source aliases must be distinct. `components remove <name>` removes a
+managed component through Core’s exact selection API. Duplicate names require
+`--kind`, `--identity` or an exact `--occurrence`; the command never chooses the first match.
+`--occurrence` selects one listed authored occurrence; without it, the logical
+component selection applies. `--agent` limits recipient removal. Core rejects
+stale selections and protects unrelated domains and authored bytes.
+
+Top-level update, component add/remove and import support `--replace` for Core’s
+explicit conflict takeover and `--changing-access` for its reported owner-only
+permission changes. These options are passed to Core’s prepared request; Core
+continues to decide ownership and safety. Install restores existing locked intent.
+
+Native component update previews print changed or unchanged component rows,
+symbolic before/after content, required binding names and permission changes.
+Completion lines identify the component and target after a successful apply.
+
+## Import
+
+`import <document> --format <profile> [--root <directory>]` previews one explicit
+producer document. The document is relative to root (cwd by default); Core
+validates path containment and the profile. `--select` may be repeated for
+profile-defined member selection. Profiles include `codexConfigV1`,
+`claudeSettingsV1`, `cursorMCPV1`, `claudeCommandV1`, `geminiCommandV1`,
+`openCodeCommandV2`, `rulesyncSourcesV1`, `apmManifest` and `apmLock`.
+Core owns supported profile names and conversion rules.
+
+The default human report and `--json` describe source claims, converted component
+kinds, resources, unresolved bindings and conversion diagnostics. This is an
+import inspection, not an installed-state or deployment-success report. Preview
+reads only the explicit producer inputs and does not write the scope or resolve
+bindings. `--apply` captures the current scope, merges converted canonical intent
+and uses the normal prepared transaction. Unresolved conversion diagnostics,
+bindings, source alias conflicts or stale captured inputs prevent application.
+Native producer deployment claims do not grant ownership of existing targets.
+A separate apply invocation rereads the producer document. `--json --apply` is a
+usage error.
+
+## Runtime Bindings and MCP Tests
+
+`install`, top-level `update`, component add/remove, `import` and `mcp test`
+accept repeated `--binding NAME=ENV_VAR`. The mapping names the only environment
+variable that may supply that symbolic secret binding. At most 256 distinct
+mappings are accepted; each mapping is at most 4096 UTF-8 bytes and each requested
+value at most 1 MiB. Missing or invalid values identify only the symbolic binding.
+No command is evaluated and no credential store or other client configuration is
+read. Mapping validation does not read values. Only Core’s actual provider call
+during apply or an explicit MCP test reads the named variable; previews, list,
+doctor and help do not resolve it. Native `{env: NAME}` bindings remain Core’s
+ordinary runtime environment references.
+
+`mcp test <name>` selects one managed MCP server using the same exact identity
+and occurrence options as component removal. It captures Core’s selected typed
+snapshot before testing, without refreshing sources or parsing native client
+configuration. This explicit command can start its displayed stdio process or
+contact its configured HTTP/SSE endpoint. It initializes the MCP protocol and
+discovers tools; it does not apply configuration or change the scope ledger.
+The JSON result contains transport, outcome, issue code, protocol version,
+redacted tool metadata, elapsed time and cleanup status. Human output contains
+outcome and redacted tool names. Successful discovery or a handshake with no tools
+exits 0; incomplete/failed tests or incomplete cleanup exit 1. Core owns timeout,
+redaction and owned process/resource cleanup. This result describes the explicit
+test, independently of a native client’s authentication, trust and tool permissions.
 
 ## Watch
 
@@ -314,7 +422,7 @@ baselines, installations, or source working trees. Uncommitted source files are
 ignored. Scheduling checks is left to the caller.
 
 Watch baselines live in `.agent/agents.watch` for project scope or
-`~/.agents/agents.watch` for user scope. `agents.json` owns subscriptions.
+`~/.agents/agents.watch` for user scope. `agents.yaml` owns subscriptions.
 A missing subscription suggests `run 'agents watch' to list subscriptions`;
 an invalid revision suggests providing a Git revision that resolves to a commit
 in the watched source. Operation failures exit 1; invalid options and unknown
@@ -457,9 +565,9 @@ This reports unrecorded membership, not absent files. An existing live link
 can produce no physical diff, but applying still rejects an entry the scope
 does not manage. Preview does not grant ownership of existing files.
 
-`agents update --apply` prepares skills and instructions under one writer lock,
+`agents update --apply` prepares all components under one writer lock,
 prints the combined report once, and applies that exact preparation in one
-transaction. Both kinds and their merged state commit together. It prints
+transaction. All selected kinds and their merged state commit together. It prints
 completion lines only after the combined operation returns successfully.
 Recovery retries the entire preparation and displays its fresh report.
 `No changes.` uses core's combined `hasChanges`, which also covers state-only
@@ -496,11 +604,12 @@ and its diff. Instruction removal prints target diffs before its completion
 lines, and `Left <path> in place because it differs from its generated version`
 for an edited target it keeps.
 
-`install` restores skills, then instruction targets, using exact locked pins,
+`install` restores all components in one transaction, using exact locked pins,
 hashes, modes, and recipients. It does not resolve newer versions and takes no
-source argument. Unavailable pins, content that fails digest verification, and
-own instructions files changed since the lock cause failure; run
-`agents instructions update --apply` to record an edited own file.
+source argument. Unavailable pins and content that fails digest verification cause
+failure. Own instructions are restored from their locked content; edits to their
+source files remain untouched and doctor reports them as changed. Run
+`agents instructions update --apply` to adopt those edits into the lock and targets.
 
 `skills remove` requires names and removes their declarations, files, and lock entries.
 With `--agent`, it removes only those recipients. Removing a member of an `all`
@@ -509,12 +618,12 @@ selection records an exclusion so an update does not reinstall it.
 `skills init [name]` creates a skill directory and `SKILL.md` in the current directory;
 without a name it creates `SKILL.md` directly there. Existing files are errors.
 
-Top-level install runs one core operation per kind, in order. Each kind commits
-its own transaction; an instruction install failure does not roll back a
-completed skill install. Its recovery retry is scoped to the failing operation.
+Top-level install uses Core’s single restore operation. Preparation failure leaves
+all domains unchanged, and completion or successful JSON is emitted only after
+the entire restore succeeds. Recovery retries the whole restore.
 
 A failed combined update exits 1 and prints no completion or successful JSON
-report. Preparation errors leave both kinds unchanged. Apply errors report
+report. Preparation errors leave all selected kinds unchanged. Apply errors report
 core's confirmed outcome: no update applied, committed with a
 later failure, or recovery required. A committed outcome calls for inspection
 with `agents doctor` in the same scope; recovery requires an applying operation in the same scope.
@@ -522,14 +631,16 @@ Concurrent external edits can invalidate a preparation and remain untouched.
 
 ## Doctor and State
 
-Doctor reports skills first, then instructions for each root. Skill checks
+Doctor reports skills, instructions and other managed component deployments for each root.
+Component checks use Core’s read-only inventory, report missing, drifted or
+unverified deployments as errors, and retain pending recovery without replaying it. Skill checks
 include missing installations, drift, broken links, newer matching source
 revisions, and uncommitted source content. Instruction checks include missing
 or drifted targets, locked targets that agents did not generate, own files
 changed since the lock, links that no longer resolve, missing locks, sections at
 both scopes, Claude forwarding (including a Claude file that hides a nested
 `AGENTS.md`) and ancestor files, Codex override files and the project size limit, source changes, and
-invalid configuration. `--root` audits both kinds.
+invalid configuration. `--root` audits every managed kind.
 `--root` accepts multiple directories, either after one option or repeated.
 Each root is an explicit project directory; `--root` cannot combine with user
 scope. A nonexistent root is an error. Without roots, project scope uses the
@@ -537,16 +648,25 @@ current directory and user scope uses HOME.
 
 | Scope | Declaration | Lock | Cache |
 | --- | --- | --- | --- |
-| Project | `.agent/agents.json` | `.agent/agents.resolved` | `.agent/cache/` |
-| User | `~/.agents/agents.json` | `~/.agents/agents.resolved` | `~/.agents/cache/` |
+| Project | `.agent/agents.yaml` | `.agent/agents.resolved` | `.agent/cache/` |
+| User | `~/.agents/agents.yaml` | `~/.agents/agents.resolved` | `~/.agents/cache/` |
 
-A project commits its declaration and lock; the cache stays local. Both files
-are standard JSON in Prettier's default layout, with sorted keys and 80-column
-arrays. Every command that writes state rewrites a file in another layout,
-including the one earlier versions wrote, even when its content is unchanged.
-To normalize a scope in one pass, run `agents instructions update --apply`
-(with `--scope user` for `~/.agents`); it may report no instruction changes
-while rewriting the files.
+A project commits its declaration and lock; the cache stays local. `agents.yaml`
+uses the [manifest format](https://github.com/agents-tools/core/blob/048cbf3f23c8a9986ca3de8654f7ec5f758161ae/Documentation/Reference/Manifest.md),
+a versioned YAML mapping with required `version: 1`. Sources are named mappings;
+components are ordered sequences. Unknown structural fields produce located
+diagnostics. The declaration schema and parser are owned by core. Lifecycle
+commands use core's deployable subset; unsupported deployment constructs produce
+located diagnostics, while dump accepts the complete format. Add, remove and
+recipient edits preserve comments and bytes outside the supported edit.
+If declaration semantics are unchanged, the original bytes stay untouched,
+including authored formatting. An unchanged update also leaves lock bytes
+untouched. `agents.resolved` remains tool-owned JSON, formatted by core when it
+changes.
+
+An empty scope can be inspected without creating state. `manifest dump` requires
+an existing declaration and reports its selected path when absent. Lock or watch
+state without `agents.yaml` is an error; restore the declaration before retrying.
 
 Project roots are the current directory, not a search up the Git ancestry.
 Core resolves installation locations, including `CODEX_HOME`,
@@ -566,6 +686,11 @@ recovery, run `agents install --scope user` for `~/.agents`, or run
 Commands that change a scope finish pending recovery before proceeding. When
 core reports recovery, the CLI prints a notice on stderr and retries that
 operation once. A second recovery or any other failure stops the command.
+When core reports an unresolved transaction conflict, doctor emits error checks
+`unresolved-transaction` (skills) and `unresolvedTransaction` (instructions),
+retains core's owner-action message and locations, and exits 1. Inspect those
+locations and resolve the conflict before retrying. Read operations preserve
+both pending journals and conflicts.
 
 ## Output and Exit Status
 
@@ -587,14 +712,14 @@ including ESC, CR, C1, and bidi controls, use visible escapes:
 
 ```text
 Error: No ChatGPT prompt named 'daily' is declared.
-  Declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'.
+  Declare it under chatgpt in the instructions component of agents.yaml and run 'agents instructions update --apply'.
 Error: Unknown option '--all'. Did you mean '--path'?
   Run 'agents --help' for usage.
 ```
 
 Git failures name the operation and source, followed by Git's diagnostics and
-a remedy. For a source alias `missing` declared in `.agent/agents.json` as
-`{"git": "file://localhost/missing/skills.git"}`, a failed add reports:
+a remedy. For a source alias `missing` declared in `.agent/agents.yaml` as
+`sources: {missing: {url: "file://localhost/missing/skills.git"}}`, a failed add reports:
 
 ```text
 $ agents skills add missing demo
@@ -624,8 +749,10 @@ Unknown commands and subcommands report `Unknown command '<name>'` and exit
 Command-path validation stops at `--`; leaf command positionals remain arguments.
 
 Doctor's `ok` means there are no error checks; warnings do not make it false.
-Instruction `invalidTarget`, `foreignTarget`, `invalidLink`, `invalidConfiguration`, and
-`stateUnavailable` diagnostics and both pending-recovery findings are errors.
+Instruction `invalidTarget`, `foreignTarget`, `invalidLink`,
+`invalidConfiguration`, `stateUnavailable` and `unresolvedTransaction` diagnostics,
+the skill `unresolved-transaction` check and both pending-recovery findings
+are errors.
 Other instruction diagnostics, including drift and missing targets, are
 warnings. Other skill severities are supplied by core.
 A failed operation emits no successful JSON report. JSON stdout contains only
@@ -633,8 +760,12 @@ one object and a trailing newline; recovery notices remain on stderr.
 
 ## JSON Schemas
 
-Every report has an integer `schemaVersion`: 2 for the update, instruction
-update and install reports, 1 for the others. Object keys are sorted. Arrays
+The [manifest dump contract](ManifestDump.md) is produced by core and printed
+byte-for-byte, with no CLI wrapper or scope field. The remaining schemas are
+CLI-owned reports, independent of core's state encodings.
+
+Every report has an integer `schemaVersion`: 2 for the manifest dump, update,
+instruction update and install reports, 1 for the others. Object keys are sorted. Arrays
 follow core's deterministic ordering; instruction section lists preserve
 selection order, targets and prompt names are sorted, and doctor roots retain
 input order.
@@ -653,17 +784,21 @@ schema version. Diagnostic IDs are core-defined strings, not a closed enum.
 
 | Command | Schema | Required root fields |
 | --- | --- | --- |
+| `manifest dump --json` | [Manifest dump contract](ManifestDump.md) | Producer-owned manifest object |
 | `skills list --json` | [Installed list](Schemas/installed-list.schema.json) | `schemaVersion`, `kind: "installed"`, `scope`, `skills` |
 | `skills list <source> --json` | [Source list](Schemas/source-list.schema.json) | `schemaVersion`, `kind: "source"`, `scope`, `source`, `skills` |
-| `update --json`, `skills update --json` | [Update](Schemas/update.schema.json) | `schemaVersion`, `scope`, `changed`, `skills`; top-level update also emits `instructions` |
+| `update --json`, `skills update --json` | [Update](Schemas/update.schema.json) | `schemaVersion`, `scope`, `changed`, `skills`; top-level update also emits `instructions` and `components` |
 | `instructions list --json` | [Managed instructions](Schemas/instructions-installed-list.schema.json) | `schemaVersion`, `kind: "installed"`, `scope`, `sections`, `targets`, `prompts` |
 | `instructions list <source> --json` | [Instruction source](Schemas/instructions-source-list.schema.json) | `schemaVersion`, `kind: "source"`, `scope`, `source`, `sections` |
 | `instructions update --json` | [Instruction update](Schemas/instructions-update.schema.json) | `schemaVersion`, `scope`, `changed`, `instructions` |
 | `instructions export --json` | [Instruction export](Schemas/instructions-export.schema.json) | `schemaVersion`, `scopes` |
 | `watch status --json`, `watch --json` | [Watch status](Schemas/watch-status.schema.json) | `schemaVersion`, `scope`, `sources` |
 | `watch diff --json` | [Watch diff](Schemas/watch-diff.schema.json) | `schemaVersion`, `scope`, `source` |
-| `install --json` | [Install](Schemas/install.schema.json) | `schemaVersion`, `scope`, `skills`, `instructions` |
+| `install --json` | [Install](Schemas/install.schema.json) | `schemaVersion`, `scope`, `skills`, `instructions`, `components` |
 | `doctor --json` | [Doctor](Schemas/doctor.schema.json) | `schemaVersion`, `ok`, `roots` |
+| `components list --json` | [Components](Schemas/components-list.schema.json) | `schemaVersion`, `kind`, `scope`, `components` |
+| `import --json` | [Import](Schemas/import.schema.json) | `schemaVersion`, `kind`, `format`, `sources`, `components`, `diagnostics`, `bindings`, `resources` |
+| `mcp test --json` | [MCP test](Schemas/mcp-test.schema.json) | `schemaVersion`, `kind`, `transport`, `outcome`, `cleanupComplete`, `elapsed`, `tools` |
 
 An empty installed list:
 
@@ -693,7 +828,7 @@ Rows include unchanged membership and are sorted by agent ID. A missing lock
 means before membership is unrecorded. Regular skill file snapshots add boolean
 `executable`; existing `kind` and `base64` retain their meanings. These fields
 are optional in the schema.
-Doctor checks add `kind: "skills" | "instructions"`; existing fields and IDs
+Doctor checks add `kind: "skills" | "instructions" | "components"`; existing fields and IDs
 remain, and instruction IDs use core's diagnostic names. Consumers distinguish
 checks by `(kind, id)` because kinds may use the same ID.
 
@@ -718,6 +853,11 @@ Instruction file snapshots use the same `{ "kind": "file", "base64": "…" }`
 shape as skill files. `install --json` reports restored skill rows and
 instruction restoration differences; instruction `sections` and
 `changedPrompts` are empty because install never resolves new content.
+Top-level update and install add `components` without changing their version 2
+contracts. Component rows identify kind, name, source, destination, recipients,
+format, ownership, symbolic before/after values, required binding names, resource
+hashes, effective readers and planned permission changes. Provider values are
+never included. Scoped skill/instruction reports retain their existing shapes.
 The definitions are CLI-owned and do not expose core's encoded lock objects.
 
 Instruction source listings add each file's `level`, `description` and `paths`

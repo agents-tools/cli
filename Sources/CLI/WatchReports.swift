@@ -29,7 +29,7 @@ struct WatchSourceReport: Encodable {
   let seen: WatchBaseline
   let current: WatchBaseline
   let commitCount: Int?
-  let changes: [WatchChange]
+  let changes: [WatchItemReport]
 
   init(_ status: WatchStatus, includeFiles: Bool) {
     alias = status.alias
@@ -37,7 +37,7 @@ struct WatchSourceReport: Encodable {
     seen = WatchBaseline(status.seen)
     current = WatchBaseline(status.current)
     commitCount = status.commitCount
-    changes = status.changes.map { WatchChange($0, includeFiles: includeFiles) }
+    changes = status.changes.map { WatchItemReport($0, includeFiles: includeFiles) }
   }
 }
 
@@ -57,7 +57,7 @@ struct WatchBaseline: Encodable {
   }
 }
 
-struct WatchChange: Encodable {
+struct WatchItemReport: Encodable {
   let name: String
   let kind: String
   let change: String

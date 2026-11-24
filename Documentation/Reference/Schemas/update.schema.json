@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Skill and instruction update preview, version 2",
+  "title": "Component update preview, version 2",
   "type": "object",
   "properties": {
     "schemaVersion": {
@@ -111,6 +111,12 @@
     "lockMissing": {
       "type": "boolean",
       "description": "Combined preview: no resolved state existed when preparation began."
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "$ref": "components.schema.json#/$defs/change"
+      }
     }
   },
   "required": [

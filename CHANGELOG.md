@@ -6,6 +6,22 @@ publication follows the [release checklist](Documentation/Reference/Release.md).
 
 ## Unreleased
 
+## [0.3.0]
+
+### Added
+
+- Inspect available components, add exported groups and import supported native
+  configuration with a preview. Review changes with `agents update` and apply
+  them with `agents update --apply`.
+- Inspect the complete declaration and its diagnostics with
+  `agents manifest dump --json`. See the [report contract](Documentation/Reference/ManifestDump.md).
+
+### Changed
+
+- Project declarations use `.agent/agents.yaml` and user declarations use
+  `~/.agents/agents.yaml`. Prepare the YAML declaration for an existing scope
+  before applying changes. Resolved configuration uses the version 2 JSON ledger.
+
 ## [0.2.0] - 2026-10-27
 
 Built on agents-tools/core 0.2.0.

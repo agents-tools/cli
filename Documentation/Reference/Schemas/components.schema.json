@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Component update definitions",
+  "$defs": {
+    "change": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "ownership": {
+          "type": "string"
+        },
+        "agents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "requiredBindings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "effectiveReaders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "privateMaterialization": {
+          "type": "boolean"
+        },
+        "before": {
+          "type": "string"
+        },
+        "after": {
+          "type": "string"
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "hash": {
+                "type": "string"
+              },
+              "executableFiles": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "required": [
+              "path",
+              "hash",
+              "executableFiles"
+            ]
+          }
+        },
+        "permissionChange": {
+          "type": "object",
+          "properties": {
+            "beforeOwner": {
+              "type": "integer"
+            },
+            "beforeGroup": {
+              "type": "integer"
+            },
+            "beforeMode": {
+              "type": "integer"
+            },
+            "afterOwner": {
+              "type": "integer"
+            },
+            "afterMode": {
+              "type": "integer"
+            },
+            "ownerOnly": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "beforeOwner",
+            "beforeGroup",
+            "beforeMode",
+            "afterOwner",
+            "afterMode",
+            "ownerOnly"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "source",
+        "path",
+        "format",
+        "ownership",
+        "agents",
+        "changed",
+        "requiredBindings",
+        "effectiveReaders",
+        "privateMaterialization",
+        "resources"
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Skill and instruction restoration, version 2",
+  "title": "Component restoration, version 2",
   "type": "object",
   "properties": {
     "schemaVersion": {
@@ -40,6 +40,12 @@
     },
     "instructions": {
       "$ref": "instructions.schema.json#/$defs/changes"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "$ref": "components.schema.json#/$defs/change"
+      }
     }
   },
   "required": [

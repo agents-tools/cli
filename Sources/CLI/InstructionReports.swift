@@ -1,6 +1,7 @@
 import AgentsCore
 import AgentsInstructions
 import AgentsSkills
+import AgentsUpdates
 
 struct SectionItem: Encodable {
   let name: String
@@ -246,11 +247,13 @@ struct InstallReport: Encodable {
   let scope: String
   let skills: [RestoredSkill]
   let instructions: InstructionChanges
+  let components: [ComponentChangeItem]
 
-  init(scope: String, skills: [InstallResult], instructions: InstructionChanges) {
-    self.scope = scope
-    self.skills = skills.map(RestoredSkill.init)
-    self.instructions = instructions
+  init(_ result: UpdateApplyResult) {
+    scope = result.report.scope.rawValue
+    skills = result.installedSkills.map(RestoredSkill.init)
+    instructions = InstructionChanges(result.report.instructions)
+    components = result.report.components.map(ComponentChangeItem.init)
   }
 }
 

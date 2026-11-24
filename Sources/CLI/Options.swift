@@ -75,9 +75,7 @@ struct RequirementOptions: ParsableArguments {
     }
     if let requirement {
       do {
-        // Core's decoder validates the same requirement forms used by declarations.
-        _ = try JSONDecoder().decode(
-          SourceRequirement.self, from: JSONEncoder().encode(requirement))
+        _ = try requirement.canonicalized()
       } catch {
         throw ValidationError("\(error)\nProvide a valid source requirement.")
       }

@@ -2,12 +2,6 @@ import Foundation
 import Testing
 
 struct SourceSelectorTests {
-  private func declaration(_ fixture: CLIFixture) throws -> [String: Any] {
-    try #require(
-      JSONSerialization.jsonObject(with: Data(contentsOf: fixture.state("agents.json")))
-        as? [String: Any])
-  }
-
   @Test func skillAddStoresSelectorsAsDeclarationFields() throws {
     let fixture = try CLIFixture()
     try fixture.skill("demo")
@@ -16,11 +10,10 @@ struct SourceSelectorTests {
     try fixture.success([
       "skills", "add", fixture.source.path + "@branch:main@skill:demo", "--agent", "codex",
     ])
-    let declaration = try declaration(fixture)
-    let sources = try #require(declaration["sources"] as? [String: [String: String]])
-    #expect(sources == ["source": ["local": fixture.source.path, "branch": "main"]])
-    let skills = try #require(declaration["skills"] as? [String: [String: Any]])
-    #expect(skills["source"]?["select"] as? [String] == ["demo"])
+    let declaration = try fixture.declaration()
+    let source = try #require(declaration.sources["source"])
+    #expect(source.location == fixture.source.path && source.requirement == .branch("main"))
+    #expect(try declaration.skills?["source"]?.select == .names(["demo"]))
   }
 
   @Test func instructionAddAcceptsRequirementsAndRejectsSkillSelectors() throws {
@@ -37,8 +30,7 @@ struct SourceSelectorTests {
     try fixture.success([
       "instructions", "add", fixture.source.path + "@branch:main", "rules", "--agent", "codex",
     ])
-    let sources = try #require(try declaration(fixture)["sources"] as? [String: [String: String]])
-    #expect(sources["source"]?["branch"] == "main")
+    #expect(try fixture.declaration().sources["source"]?.requirement == .branch("main"))
   }
 
   @Test func sourcesSharingALastComponentGetDistinctAliases() throws {
@@ -51,7 +43,7 @@ struct SourceSelectorTests {
     try fixture.git(["clone", "--quiet", fixture.source.path, mirror.path])
     try fixture.success(["skills", "add", fixture.source.path, "--agent", "codex"])
     try fixture.success(["watch", "add", mirror.path])
-    let sources = try #require(try declaration(fixture)["sources"] as? [String: Any])
+    let sources = try fixture.declaration().sources
     #expect(Set(sources.keys) == ["source", "mirror-source"])
   }
 }

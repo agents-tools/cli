@@ -8,7 +8,9 @@ let package = Package(
   products: [.executable(name: "agents", targets: ["CLI"])],
   dependencies: [
     .package(url: "https://github.com/apple/swift-argument-parser", from: "1.7.0"),
-    .package(url: "https://github.com/agents-tools/core.git", "0.2.0"..<"0.3.0"),
+    .package(
+      url: "https://github.com/agents-tools/core.git",
+      revision: "048cbf3f23c8a9986ca3de8654f7ec5f758161ae"),
   ],
   targets: [
     .executableTarget(
@@ -16,11 +18,16 @@ let package = Package(
       dependencies: [
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
         .product(name: "AgentsCore", package: "core"),
+        .product(name: "AgentsManifest", package: "core"),
         .product(name: "AgentsSkills", package: "core"),
         .product(name: "AgentsInstructions", package: "core"),
         .product(name: "AgentsUpdates", package: "core"),
       ]),
-    .testTarget(name: "CLITests", dependencies: ["CLI"]),
+    .testTarget(
+      name: "CLITests",
+      dependencies: [
+        "CLI", .product(name: "AgentsManifest", package: "core"),
+      ]),
   ],
   swiftLanguageModes: [.v6]
 )

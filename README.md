@@ -7,13 +7,13 @@
 <h1 align="center">agents</h1>
 
 <p align="center">
-  Install and update agent skills and instructions, resolved to exact versions.
+  Manage agent components from declared sources, resolved to exact versions.
 </p>
 
 <p align="center">
   <a href="https://github.com/agents-tools/cli/actions/workflows/ci.yml"><img src="https://github.com/agents-tools/cli/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI"></a>
   <a href="Package.swift"><img src="https://img.shields.io/badge/Swift-6.3%2B-F05138" alt="Swift 6.3+"></a>
-  <a href="Package.swift"><img src="https://img.shields.io/badge/platforms-macOS%2015%2B-lightgrey" alt="Platforms: macOS 15+"></a>
+  <a href="Package.swift"><img src="https://img.shields.io/badge/platforms-macOS%2015%2B%20%7C%20Linux-lightgrey" alt="Platforms: macOS 15+ and Linux"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
 </p>
 
@@ -30,9 +30,9 @@
 
 ## Overview
 
-Declare skills and instruction sections once, restore their locked content with
-`install`, and preview upstream changes before applying an update. `agents`
-supports Codex, Claude Code, Cursor, Gemini CLI, and OpenCode through
+Declare skills, instructions, commands, subagents, MCP servers and settings once,
+restore their locked content with `install`, and preview changes before applying
+an update. `agents` supports Codex, Claude Code, Cursor, Gemini CLI, and OpenCode through
 [agents-tools/core](https://github.com/agents-tools/core).
 
 The executable owns commands and terminal presentation. Core owns source
@@ -54,7 +54,7 @@ an upstream change:
 
 ## Install
 
-Versions 0.1.2 and later and development builds require macOS 15 or later.
+On macOS, versions 0.1.2 and later and development builds require macOS 15 or later.
 Earlier releases retain their original requirements.
 
 Install the latest release from the Homebrew tap:
@@ -73,7 +73,7 @@ brew install --HEAD agents-tools/tap/agents
 See the [tap documentation](https://github.com/agents-tools/homebrew-tap#readme)
 for packaging and channel details.
 
-To build from source instead:
+To build from source on macOS or Linux:
 
 ```sh
 git clone https://github.com/agents-tools/cli.git
@@ -82,8 +82,7 @@ swift build -c release
 .build/release/agents --help
 ```
 
-Place `.build/release/agents` in a directory on your `PATH`. To run from this
-checkout, use `.build/release/agents` or `swift run agents`.
+To run from this checkout, use `.build/release/agents` or `swift run agents`.
 
 ## Usage
 
@@ -108,7 +107,20 @@ agents update --apply
 agents skills remove pdf
 agents skills init my-skill
 agents doctor --root /path/to/project-a /path/to/project-b --json
+agents manifest dump --json
+agents components list --json
+agents components list /path/to/source --alias team --group tools --json
+agents components add /path/to/source --alias team --group tools
+agents components remove review --kind command
+agents import review.md --root /path/to/source --format claudeCommandV1
+agents import review.md --root /path/to/source --format claudeCommandV1 --apply
+agents mcp test local-tools --binding token=TOOLS_TOKEN --json
 ```
+
+Declarations live in `.agent/agents.yaml` for project scope or
+`~/.agents/agents.yaml` for user scope. The [manifest format](https://github.com/agents-tools/core/blob/048cbf3f23c8a9986ca3de8654f7ec5f758161ae/Documentation/Reference/Manifest.md)
+uses a versioned YAML mapping. `agents manifest dump --json` prints the
+local declaration as a JSON object with source locations without resolving sources.
 
 Project scope is the default and uses the current directory. User scope is
 selected with `--scope user`. Commands never prompt for confirmation.
@@ -127,16 +139,29 @@ remove, or update sets the recipients of the scope's entire section list.
 `agents instructions init <name>` creates `.agent/instructions/<name>.md`, and
 `agents instructions export` maps locked targets to their sections.
 
-Named ChatGPT prompts are declared in `agents.json` and locked with
+Named ChatGPT prompts are declared in `agents.yaml` and locked with
 `agents instructions update --apply`; render emits only their locked sections
 and optional custom content. Updates identify changed prompts to re-paste.
-Top-level `update` previews skills and instructions together and applies them in
-one transaction. `install` and `doctor` process skills then instructions.
-All three support combined `--json` reports.
+Top-level `update` previews all declared components and applies them in one
+transaction. `install` restores the exact locked components in one transaction;
+`doctor` audits managed deployments without recovery or writes. All three
+support combined `--json` reports.
+
+`components list` inspects current components or discovers an exported source
+group. `components add` applies that group; `components remove` uses an exact
+managed identity and optional occurrence when names are ambiguous. Producer-owned
+members remain editable at their declaring source. `import` previews an explicit
+producer document and applies its canonical intent only with `--apply`.
+
+`mcp test` explicitly starts or contacts one selected managed MCP server and
+discovers its tools. Runtime bindings use repeated `--binding NAME=ENV_VAR`
+mappings on apply or test commands. Values are read only when Core requests that
+symbolic binding and are not included in reports. See the [CLI reference](Documentation/Reference/CLI.md)
+for supported profiles, selection options and report schemas.
 
 ## Requirements
 
-- macOS 15 or later.
+- macOS 15 or later, or Linux (source build).
 - Swift 6.3 or later to build from source.
 - Git for Git-backed sources.
 
@@ -159,7 +184,16 @@ then follow the repository's [contributing guide](CONTRIBUTING.md) and
 
 ```sh
 swift build
-env -u CODEX_HOME -u CLAUDE_CONFIG_DIR -u XDG_CONFIG_HOME -u XDG_STATE_HOME -u XDG_CACHE_HOME swift test
+python3 - <<'PYTEST'
+import os, subprocess, tempfile
+with tempfile.TemporaryDirectory(prefix="agents-test-home-") as test_home:
+    environment = {key: value for key, value in os.environ.items()
+                   if key not in ("CODEX_HOME", "CLAUDE_CONFIG_DIR")
+                   and not key.startswith(("XDG_", "GIT_"))}
+    environment.update(HOME=test_home, GIT_CONFIG_NOSYSTEM="1",
+                       GIT_CONFIG_GLOBAL="/dev/null")
+    subprocess.run(["swift", "test"], env=environment, check=True)
+PYTEST
 swift build -c release
 swift format lint --strict --configuration .swift-format --recursive Package.swift Sources Tests
 ```
@@ -168,13 +202,14 @@ Executable tests create local Git sources and isolated homes in the system
 temporary directory. Every child process uses an explicit environment rather
 than inheriting agent or Git configuration. Fixtures are removed after tests.
 
-Core uses the published version range `"0.2.0"..<"0.3.0"`. To use a local core
-worktree without changing the package manifest:
+Core is pinned to an exact development revision in `Package.swift` and
+`Package.resolved`. To use an authorized local core worktree without changing
+the package manifest:
 
 ```sh
 swift package resolve
 swift package edit core --path /path/to/core-worktree
-swift test
+# Run the isolated test command above.
 swift package unedit core
 ```
 
@@ -194,8 +229,9 @@ declared in the organization's
 | `policy / policy` | Conventional Commit subjects, PR title, and added-line policy |
 | `validate / result` | Strict format lint, package tests, release build, and terminal recording check |
 
-[Package configuration](.github/swift-package.json) selects only Xcode 26.6 on
-`macos-26`, whose Swift 6.3 matches the package's minimum tools version.
+[Package configuration](.github/swift-package.json) selects Xcode 26.6 on
+`macos-26` and a pinned Swift 6.4.1 Noble container image for Linux validation.
+[Package.swift](Package.swift) defines the minimum toolchain and macOS versions.
 Formatting uses the default paths: `Package.swift`, `Sources`, and `Tests`.
 Executable tests cover help, version, and usage errors in an isolated environment.
 

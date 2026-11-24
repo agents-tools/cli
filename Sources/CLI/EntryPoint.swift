@@ -1,15 +1,21 @@
+import AgentsCore
 import ArgumentParser
-import Darwin
 import Foundation
 
+#if canImport(Darwin)
+  import Darwin
+#else
+  import Glibc
+#endif
+
 enum BuildInfo {
-  static let version = "0.2.0"
+  static let version = "0.3.0"
 }
 
 struct Agents: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "agents",
-    abstract: "Manage agent skills and instructions from declared sources.",
+    abstract: "Manage agent components from declared sources.",
     discussion: """
       Examples:
         agents skills add github.com/owner/skills pdf-forms
@@ -21,7 +27,8 @@ struct Agents: ParsableCommand {
         agents update --apply       Write the updates and the new lock
       """,
     subcommands: [
-      Skills.self, InstructionsCommand.self, Watch.self, Install.self, Update.self, Doctor.self,
+      Skills.self, InstructionsCommand.self, Watch.self, Manifest.self, Install.self, Update.self,
+      Doctor.self, ComponentsCommand.self, ImportCommand.self, MCPCommand.self,
     ]
   )
 
@@ -43,7 +50,8 @@ struct Skills: ParsableCommand {
 
 @main
 enum EntryPoint {
-  static func main() {
+  static func main() async {
+    ProcessLimits.raiseOpenFileLimit()
     var command: any ParsableCommand
     do {
       let arguments = Array(CommandLine.arguments.dropFirst())
@@ -61,10 +69,14 @@ enum EntryPoint {
       }
       Terminal.error(
         Agents.message(for: error), remedy: "Run 'agents --help' for usage.")
-      Darwin.exit(64)
+      exit(64)
     }
     do {
-      try command.run()
+      if var asynchronous = command as? any AsyncParsableCommand {
+        try await asynchronous.run()
+      } else {
+        try command.run()
+      }
     } catch {
       // Help requests from a command group are successful parser exits.
       if Agents.exitCode(for: error) == .success {
@@ -72,11 +84,11 @@ enum EntryPoint {
         return
       }
       if let code = error as? ExitCode {
-        Darwin.exit(code.rawValue)
+        exit(code.rawValue)
       }
       Terminal.error(
         Terminal.failureMessage(error), remedy: Terminal.failureRemedy(error, command: command))
-      Darwin.exit(1)
+      exit(1)
     }
   }
 

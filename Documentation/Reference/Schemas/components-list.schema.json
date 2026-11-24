@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Component inspection, version 1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "components"
+    },
+    "scope": {
+      "enum": [
+        "project",
+        "user"
+      ]
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "type": "string"
+          },
+          "generation": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "occurrences": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "manifestPath": {
+                  "type": "string"
+                },
+                "consumerEditable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "source",
+                "manifestPath",
+                "consumerEditable"
+              ]
+            }
+          }
+        },
+        "required": [
+          "identity",
+          "generation",
+          "kind",
+          "name",
+          "source",
+          "agents",
+          "occurrences"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "scope",
+    "components"
+  ]
+}

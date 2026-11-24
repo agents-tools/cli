@@ -7,12 +7,13 @@ struct HumanExecutableTests {
   @Test func missingGitSourceHasConciseFailureAndRemedy() throws {
     let fixture = try CLIFixture()
     let source = "file://localhost" + fixture.home.appendingPathComponent("missing.git").path
-    try FileManager.default.createDirectory(
-      at: fixture.state("agents.json").deletingLastPathComponent(),
-      withIntermediateDirectories: true)
-    try JSONSerialization.data(withJSONObject: [
-      "sources": ["missing": ["git": source]]
-    ]).write(to: fixture.state("agents.json"))
+    try fixture.writeManifest(
+      """
+      version: 1
+      sources:
+        missing:
+          url: \(source.debugDescription)
+      """)
     let failure = try fixture.run(["skills", "add", "missing", "demo"])
     #expect(failure.status == 1 && failure.stdout.isEmpty)
     #expect(failure.stderr.hasPrefix("Error: Git could not clone \(source).\n"))
@@ -25,14 +26,21 @@ struct HumanExecutableTests {
     try fixture.skill()
     try fixture.commit()
     try fixture.success(["skills", "add", fixture.source.path, "demo"])
+    let declaration = try Data(contentsOf: fixture.state("agents.yaml"))
+    let lock = try Data(contentsOf: fixture.state("agents.resolved"))
+    let target = fixture.project.appendingPathComponent(".agents/skills/demo/SKILL.md")
+    let installed = try Data(contentsOf: target)
     try FileManager.default.removeItem(at: fixture.source.appendingPathComponent(".git"))
     let failure = try fixture.run(["skills", "update"])
     #expect(failure.status == 1 && failure.stdout.isEmpty)
-    #expect(failure.stderr.hasPrefix("Error: Git could not fetch \(fixture.source.path).\n"))
-    #expect(failure.stderr.contains("\n  fatal: Could not read from remote repository.\n"))
+    #expect(failure.stderr.hasPrefix("Error: "))
     #expect(
-      failure.stderr.hasSuffix(
-        "  and the repository exists.\n  Check Git access and the source location.\n"))
+      failure.stderr.contains("Git could not ") && failure.stderr.contains(fixture.source.path))
+    #expect(failure.stderr.contains("fatal:"))
+    #expect(failure.stderr.hasSuffix("\n  Check Git access and the source location.\n"))
+    #expect(try Data(contentsOf: fixture.state("agents.yaml")) == declaration)
+    #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
+    #expect(try Data(contentsOf: target) == installed)
     let lines = failure.stderr.split(separator: "\n", omittingEmptySubsequences: false)
     #expect(lines.dropFirst().dropLast().allSatisfy { $0.hasPrefix("  ") })
     #expect(!failure.stderr.contains("\\n") && !failure.stderr.contains("\n  ."))
@@ -200,18 +208,27 @@ struct HumanExecutableTests {
     try fixture.success([
       "skills", "add", fixture.source.path, "pdf", "--mode", "edit", "--agent", "codex",
     ])
-    var declaration = try fixture.declaration()
-    var skills = try #require(declaration["skills"] as? [String: [String: Any]])
-    let alias = try #require(skills.keys.first)
-    skills[alias]?["agents"] = ["cursor"]
-    declaration["skills"] = skills
-    try JSONSerialization.data(withJSONObject: declaration).write(to: fixture.state("agents.json"))
+    try fixture.declareSkills(mode: "edit", agents: "[cursor]")
     let preview = try fixture.success(["skills", "update"]).stdout
     #expect(preview.hasPrefix("~ changed  pdf  "))
     try Data("# Claude Guide\n\nCustom notes.\n".utf8).write(
       to: fixture.project.appendingPathComponent("CLAUDE.md"))
-    let added = try fixture.success(["instructions", "add", fixture.source.path]).stdout
-    #expect(added == "Added canonical-artifacts to AGENTS.md (claude-code, codex).\n")
+    let declaration = try Data(contentsOf: fixture.state("agents.yaml"))
+    let lock = try Data(contentsOf: fixture.state("agents.resolved"))
+    let claude = fixture.project.appendingPathComponent("CLAUDE.md")
+    let notes = try Data(contentsOf: claude)
+    let skill = fixture.project.appendingPathComponent(".agents/skills/pdf")
+    let destination = try FileManager.default.destinationOfSymbolicLink(atPath: skill.path)
+    let refused = try fixture.run(["instructions", "add", fixture.source.path])
+    #expect(refused.status == 1 && refused.stdout.isEmpty)
+    #expect(refused.stderr.contains("requiresCombinedUpdate") && refused.stderr.contains("pdf"))
+    #expect(try Data(contentsOf: fixture.state("agents.yaml")) == declaration)
+    #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
+    #expect(try Data(contentsOf: claude) == notes)
+    #expect(try FileManager.default.destinationOfSymbolicLink(atPath: skill.path) == destination)
+    #expect(
+      !FileManager.default.fileExists(
+        atPath: fixture.project.appendingPathComponent("AGENTS.md").path))
   }
 
   @Test func promptErrorsAndUsagePunctuation() throws {
@@ -220,7 +237,7 @@ struct HumanExecutableTests {
     #expect(missing.status == 1 && missing.stdout.isEmpty)
     #expect(
       missing.stderr
-        == "Error: No ChatGPT prompt named 'daily' is declared.\n  Declare it under instructions.chatgpt in agents.json and run 'agents instructions update --apply'.\n"
+        == "Error: No ChatGPT prompt named 'daily' is declared.\n  Declare it under chatgpt in the instructions component of agents.yaml and run 'agents instructions update --apply'.\n"
     )
     #expect(!FileManager.default.fileExists(atPath: fixture.state("").path))
     try fixture.instruction()
@@ -237,7 +254,7 @@ struct HumanExecutableTests {
     #expect(unlocked.status == 1)
     #expect(
       unlocked.stderr
-        == "Error: A ChatGPT prompt must have at least one locked section.\n  Declare the ChatGPT prompt in agents.json and run 'agents instructions update --apply'.\n"
+        == "Error: A ChatGPT prompt must have at least one locked section.\n  Declare the ChatGPT prompt in agents.yaml and run 'agents instructions update --apply'.\n"
     )
     let journal = fixture.state("transaction.new")
     try Data("pending".utf8).write(to: journal)

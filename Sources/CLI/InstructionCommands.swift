@@ -1,5 +1,6 @@
 import AgentsCore
 import AgentsInstructions
+import AgentsManifest
 import ArgumentParser
 import Foundation
 
@@ -106,20 +107,16 @@ struct ListInstructions: ParsableCommand {
 
   func run() throws {
     if let source {
-      let outcome = try withRecovery {
-        try InstructionOperations.add(
-          InstructionAddOptions(
-            source: source, listOnly: true, scope: location.scope, path: discovery.path))
-      }
+      let outcome = try InstructionOperations.add(
+        InstructionAddOptions(
+          source: source, listOnly: true, scope: location.scope, path: discovery.path))
       if json {
         try Terminal.json(InstructionSourceReport(scope: location.scope.rawValue, outcome: outcome))
       } else {
         Terminal.availableInstructions(outcome.available)
       }
     } else {
-      let locked = try withRecovery {
-        try InstructionOperations.listManaged(scope: location.scope)
-      }
+      let locked = try InstructionOperations.listManaged(scope: location.scope)
       let report = InstructionListReport(scope: location.scope.rawValue, locked: locked)
       if json {
         try Terminal.json(report)
@@ -198,22 +195,11 @@ struct RenderChatGPT: ParsableCommand {
   @OptionGroup var location: ScopeOptions
 
   func run() throws {
-    let bytes = try withRecovery {
-      _ = try InstructionOperations.listManaged(scope: location.scope)
-      let declarationURL = StateStore(scope: location.scope, environment: RuntimeEnvironment())
-        .declarationURL
-      let declaration: Declaration
-      do {
-        declaration = try JSONDecoder().decode(
-          Declaration.self, from: Data(contentsOf: declarationURL))
-      } catch CocoaError.fileReadNoSuchFile {
-        declaration = Declaration()
-      }
-      guard declaration.instructions?.chatgpt?[prompt] != nil else {
-        throw HumanOutputError.undeclaredPrompt(prompt)
-      }
-      return try InstructionOperations.renderChatGPT(prompt: prompt, scope: location.scope)
+    let declaration = try StateStore(scope: location.scope).loadDeclaration()
+    guard try declaration.instructions?.chatgpt?[prompt] != nil else {
+      throw HumanOutputError.undeclaredPrompt(prompt)
     }
+    let bytes = try InstructionOperations.renderChatGPT(prompt: prompt, scope: location.scope)
     Terminal.write(Terminal.text(String(decoding: bytes, as: UTF8.self)))
   }
 }

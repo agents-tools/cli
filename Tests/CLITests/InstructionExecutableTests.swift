@@ -1,4 +1,6 @@
+import AgentsCore
 import AgentsInstructions
+import AgentsManifest
 import Foundation
 import Testing
 
@@ -41,7 +43,7 @@ struct InstructionExecutableTests {
     try fixture.instruction(body: "Updated instructions")
     try fixture.commit()
     try fixture.declarePrompt(scope: scope)
-    let declaration = try Data(contentsOf: fixture.state("agents.json", scope: scope))
+    let declaration = try Data(contentsOf: fixture.state("agents.yaml", scope: scope))
     let lock = try Data(contentsOf: fixture.state("agents.resolved", scope: scope))
     let preview = try fixture.success(["instructions", "update"] + arguments)
     #expect(
@@ -57,7 +59,7 @@ struct InstructionExecutableTests {
     #expect(Data(base64Encoded: try #require(before["base64"])) == Data(drift.utf8))
     #expect(files.first?["drift"] as? String == "drifted")
     #expect(files.first?["foreign"] as? Bool == false)
-    #expect(try Data(contentsOf: fixture.state("agents.json", scope: scope)) == declaration)
+    #expect(try Data(contentsOf: fixture.state("agents.yaml", scope: scope)) == declaration)
     #expect(try Data(contentsOf: fixture.state("agents.resolved", scope: scope)) == lock)
     #expect(try Data(contentsOf: target) == Data(drift.utf8))
     let applied = try fixture.success(["instructions", "update", "--apply"] + arguments)
@@ -101,7 +103,7 @@ struct InstructionExecutableTests {
     let choices = try fixture.success(["instructions", "add"] + sourceArguments)
     #expect(choices.stdout.contains("canonical-artifacts") && choices.stdout.contains("other"))
     #expect(choices.stdout.contains("Canonical Artifacts rules."))
-    #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.json").path))
+    #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.yaml").path))
     let discovered = try fixture.success(["instructions", "list"] + sourceArguments + ["--json"])
       .json()
     #expect(discovered["kind"] as? String == "source")
@@ -131,9 +133,8 @@ struct InstructionExecutableTests {
     #expect(replaced.stdout.contains("+Original instructions"))
     try fixture.success(["instructions", "add", "source", "other"])
     let declaration = try fixture.declaration()
-    let instructions = try #require(declaration["instructions"] as? [String: Any])
     #expect(
-      instructions["sections"] as? [String] == ["source:canonical-artifacts", "source:other"])
+      try declaration.instructions?.sections == ["source:canonical-artifacts", "source:other"])
   }
 
   @Test func editedTargetsFollowTheLockAndHandWrittenOnesNeedReplace() throws {
@@ -186,12 +187,13 @@ struct InstructionExecutableTests {
     }
   }
 
-  @Test func updateApplyRewritesStateFromTheEarlierLayout() throws {
+  @Test func unchangedUpdatePreservesManifestAndLockFormatting() throws {
     let fixture = try CLIFixture()
     try fixture.instruction()
     try fixture.commit()
     try fixture.success(["instructions", "add", fixture.source.path, "--agent", "codex"])
-    let files = [fixture.state("agents.json"), fixture.state("agents.resolved")]
+    let manifest = try Data(contentsOf: fixture.state("agents.yaml"))
+    let files = [fixture.state("agents.resolved")]
     let standard = try files.map { try Data(contentsOf: $0) }
     #expect(standard.allSatisfy { !String(decoding: $0, as: UTF8.self).contains("\" : ") })
     for file in files {
@@ -201,10 +203,12 @@ struct InstructionExecutableTests {
       #expect(String(decoding: earlier, as: UTF8.self).contains("\" : "))
       try earlier.write(to: file)
     }
-    try fixture.success(["instructions", "update", "--apply"])
-    #expect(try files.map { try Data(contentsOf: $0) } == standard)
-    try fixture.success(["instructions", "update", "--apply"])
-    #expect(try files.map { try Data(contentsOf: $0) } == standard)
+    let before = try files.map { try Data(contentsOf: $0) }
+    for _ in 0..<2 {
+      try fixture.success(["instructions", "update", "--apply"])
+      #expect(try files.map { try Data(contentsOf: $0) } == before)
+      #expect(try Data(contentsOf: fixture.state("agents.yaml")) == manifest)
+    }
   }
 
   @Test func addNamesTheSectionsEachTargetReceives() throws {
@@ -275,16 +279,27 @@ struct InstructionExecutableTests {
       try String(contentsOf: target, encoding: .utf8)
         == generated(["# guide\n\nWrite the instructions here."]))
     let declaration = try fixture.declaration()
-    #expect((declaration["instructions"] as? [String: Any])?["sections"] as? [String] == ["guide"])
-    try Data(
-      "---\ndescription: Guide.\n---\n# guide\n\nEdited instructions.\n".utf8
-    ).write(to: own)
-    let install = try fixture.run(["install"])
+    #expect(try declaration.instructions?.sections == ["guide"])
+    let frozen = try Data(contentsOf: target)
+    let lock = try Data(contentsOf: fixture.state("agents.resolved"))
+    let edited = Data("---\ndescription: Guide.\n---\n# guide\n\nEdited instructions.\n".utf8)
+    try edited.write(to: own)
+    try FileManager.default.removeItem(at: target)
+    try fixture.success(["install"])
+    #expect(try Data(contentsOf: target) == frozen)
+    #expect(try Data(contentsOf: own) == edited)
+    #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
+    let doctor = try fixture.run(["doctor", "--json"])
+    #expect(doctor.status == 0 && doctor.stderr.isEmpty)
+    let roots = try #require(try doctor.json()["roots"] as? [[String: Any]])
+    let checks = try #require(roots.first?["checks"] as? [[String: Any]])
     #expect(
-      install.status == 1
-        && install.stderr.hasSuffix(
-          "\n  Run 'agents instructions update --apply' to regenerate targets from the edited file.\n"
-        ))
+      checks.contains {
+        $0["id"] as? String == "ownChanged" && $0["status"] as? String == "warning"
+          && $0["path"] as? String == own.path
+      })
+    #expect(try Data(contentsOf: own) == edited)
+    #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
     try fixture.success(["instructions", "update", "--apply"])
     #expect(try String(contentsOf: target, encoding: .utf8).contains("Edited instructions."))
     let other = fixture.root.appendingPathComponent("other")
@@ -315,7 +330,7 @@ struct InstructionExecutableTests {
     try fixture.success(["instructions", "add", fixture.source.path, "--agent", "codex"])
     let target = fixture.project.appendingPathComponent("AGENTS.md")
     let bytes = try Data(contentsOf: target)
-    let declaration = try Data(contentsOf: fixture.state("agents.json"))
+    let declaration = try Data(contentsOf: fixture.state("agents.yaml"))
     let lock = try Data(contentsOf: fixture.state("agents.resolved"))
     let arguments = ["instructions", "update", "--agent", "cursor"]
     let recipients = "Recipients of AGENTS.md: codex -> cursor\n"
@@ -341,7 +356,7 @@ struct InstructionExecutableTests {
     #expect(change["afterAgents"] as? [String] == ["cursor"])
     #expect(change["before"] as? [String: String] == change["after"] as? [String: String])
     #expect(try Data(contentsOf: target) == bytes)
-    #expect(try Data(contentsOf: fixture.state("agents.json")) == declaration)
+    #expect(try Data(contentsOf: fixture.state("agents.yaml")) == declaration)
     #expect(try Data(contentsOf: fixture.state("agents.resolved")) == lock)
     let applied = try fixture.success(arguments + ["--apply"])
     #expect(applied.stdout.contains(recipients))
@@ -373,7 +388,7 @@ struct InstructionExecutableTests {
     ])
     let forwarded = try String(contentsOf: claude, encoding: .utf8)
     #expect(forwarded.contains("@AGENTS.md") && forwarded.contains("Keep Claude custom content."))
-    let before = try Data(contentsOf: fixture.state("agents.json"))
+    let before = try Data(contentsOf: fixture.state("agents.yaml"))
     let preview = try fixture.success(["instructions", "update", "--agent", "gemini-cli", "--json"])
       .json()
     #expect(preview["changed"] as? Bool == true)
@@ -397,7 +412,7 @@ struct InstructionExecutableTests {
       let diffIndex = try #require(human.stdout.range(of: header)?.lowerBound)
       #expect(recipientsIndex < diffIndex)
     }
-    #expect(try Data(contentsOf: fixture.state("agents.json")) == before)
+    #expect(try Data(contentsOf: fixture.state("agents.yaml")) == before)
     try fixture.success(["instructions", "update", "--agent", "gemini-cli", "--apply"])
     #expect(try String(contentsOf: claude, encoding: .utf8) == custom)
     #expect(
@@ -445,7 +460,8 @@ struct InstructionExecutableTests {
       })
     let lock = try Data(contentsOf: fixture.state("agents.resolved"))
     let restored = try fixture.success(["install", "--json"]).json()
-    #expect(Set(restored.keys) == ["schemaVersion", "scope", "skills", "instructions"])
+    #expect(
+      Set(restored.keys) == ["schemaVersion", "scope", "skills", "instructions", "components"])
     #expect((restored["skills"] as? [[String: Any]])?.first?["name"] as? String == "demo")
     #expect((restored["instructions"] as? [String: Any])?["changed"] as? Bool == true)
     #expect(try Data(contentsOf: target) == originalTarget)
@@ -536,7 +552,7 @@ struct InstructionExecutableTests {
     let update = try fixture.success(["update", "--json"]).json()
     #expect(update["changed"] as? Bool == false)
     #expect((update["instructions"] as? [String: Any])?["lockMissing"] as? Bool == true)
-    #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.json").path))
+    #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.yaml").path))
     let listing = try fixture.success(["instructions", "list"])
     #expect(listing.stdout == "No managed project instructions.\n")
   }
@@ -625,20 +641,21 @@ extension CLIFixture {
       to: directory.appendingPathComponent(name + ".md"))
   }
 
-  func declaration(scope: String = "project") throws -> [String: Any] {
-    try #require(
-      JSONSerialization.jsonObject(with: Data(contentsOf: state("agents.json", scope: scope)))
-        as? [String: Any])
-  }
-
   func declarePrompt(scope: String = "project") throws {
-    var declaration = try declaration(scope: scope)
-    var instructions = try #require(declaration["instructions"] as? [String: Any])
-    let sections = try #require(instructions["sections"] as? [String])
-    instructions["chatgpt"] = ["weekly": ["sections": sections, "append": "prompt-custom.md"]]
-    declaration["instructions"] = instructions
-    try JSONSerialization.data(withJSONObject: declaration, options: [.sortedKeys]).write(
-      to: state("agents.json", scope: scope))
+    let url = state("agents.yaml", scope: scope)
+    let document = try DeclarationDocument(
+      bytes: Array(Data(contentsOf: url)), identity: DocumentIdentity(url.path))
+    let index = try declaration(scope: scope).skills?.isEmpty == false ? 1 : 0
+    let node = try #require(document.node(at: "/components/\(index)"))
+    let change = try document.preparing([
+      .upsertPrompt(
+        node,
+        NamedPromptDeclaration(
+          name: "weekly",
+          prompt: PromptDeclaration(
+            sections: ["source:canonical-artifacts"], append: "prompt-custom.md")))
+    ])
+    try Data(change.bytes).write(to: url)
     try Data("Custom prompt content.\n".utf8).write(
       to: (scope == "project" ? project : home).appendingPathComponent("prompt-custom.md"))
   }

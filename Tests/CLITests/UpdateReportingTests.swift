@@ -63,9 +63,10 @@ struct UpdateReportingTests {
         "Updated pdf for claude-code, codex: 1.3.0 (\(newRevision.prefix(7))) -> 1.4.0 (\(newRevision.prefix(7))).\n"
       ))
     #expect(!repinned.contains("mode pdf/"))
-    var declaration = try fixture.declaration()
-    declaration["skills"] = [String: Any]()
-    try JSONSerialization.data(withJSONObject: declaration).write(to: fixture.state("agents.json"))
+    try fixture.writeManifest(
+      """
+      version: 1
+      """)
     let removal = try fixture.success(command + ["--json"]).json()
     let removedSkill = try #require((removal["skills"] as? [[String: Any]])?.first)
     #expect(removedSkill["oldVersion"] as? String == "1.4.0")
@@ -85,7 +86,7 @@ struct UpdateReportingTests {
     let steadySkill = try #require((steady["skills"] as? [[String: Any]])?.first)
     #expect(steadySkill["changed"] as? Bool == false)
     #expect((steadySkill["membership"] as? [Any])?.count == 2)
-    try selection(fixture) { $0["agents"] = ["claude-code", "cursor"] }
+    try fixture.declareSkills(mode: "edit", agents: "[claude-code, cursor]")
     let report = try fixture.success(command + ["--json"]).json()
     let skill = try #require((report["skills"] as? [[String: Any]])?.first)
     #expect(skill["oldVersion"] == nil && skill["newVersion"] == nil)
@@ -138,7 +139,7 @@ struct UpdateReportingTests {
     #expect(preview.contains("  + added  codex (edit)  .agents/skills/pdf\n"))
     let failed = try fixture.run(command + ["--apply"])
     #expect(failed.status == 1 && failed.stdout.isEmpty)
-    #expect(failed.stderr.contains("this scope does not manage"))
+    #expect(failed.stderr.contains("unmanaged content"))
     #expect(!FileManager.default.fileExists(atPath: fixture.state("agents.resolved").path))
   }
 
@@ -198,11 +199,20 @@ struct UpdateReportingTests {
     try fixture.commit()
     try fixture.success(["instructions", "add", fixture.source.path])
     try fixture.declarePrompt()
-    var declaration = try fixture.declaration()
-    var instructions = try #require(declaration["instructions"] as? [String: Any])
-    instructions["sections"] = [String]()
-    declaration["instructions"] = instructions
-    try JSONSerialization.data(withJSONObject: declaration).write(to: fixture.state("agents.json"))
+    try fixture.writeManifest(
+      """
+      version: 1
+      sources:
+        source:
+          path: \(fixture.source.path.debugDescription)
+      components:
+        - kind: instructions
+          sections: []
+          chatgpt:
+            weekly:
+              sections: [{name: canonical-artifacts, source: source}]
+              append: prompt-custom.md
+      """)
     try fixture.success(["update", "--apply"])
     let locked = try Data(contentsOf: fixture.state("agents.resolved"))
     try Data("Unrelated source content\n".utf8).write(
@@ -286,7 +296,7 @@ struct UpdateReportingTests {
   @Test(arguments: [
     (
       UpdateApplyDisposition.unchanged, "Update failed; no update was applied.",
-      "Check the scope's agents.json, agents.resolved, and recovery journal."
+      "Check the scope's agents.yaml, agents.resolved, and recovery journal."
     ),
     (
       .committed, "Update committed, but a later step failed.",
@@ -307,14 +317,4 @@ struct UpdateReportingTests {
         == "Error: \(outcome)\n  Invalid state: fixture failure.\n  \(remedy)\n")
   }
 
-  private func selection(_ fixture: CLIFixture, edit: (inout [String: Any]) -> Void) throws {
-    var declaration = try fixture.declaration()
-    var skills = try #require(declaration["skills"] as? [String: [String: Any]])
-    let alias = try #require(skills.keys.first)
-    var value = try #require(skills[alias])
-    edit(&value)
-    skills[alias] = value
-    declaration["skills"] = skills
-    try JSONSerialization.data(withJSONObject: declaration).write(to: fixture.state("agents.json"))
-  }
 }

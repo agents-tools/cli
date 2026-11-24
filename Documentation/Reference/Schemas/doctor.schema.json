@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Skill and instruction diagnosis, version 1",
+  "title": "Managed component diagnosis, version 1",
   "type": "object",
   "properties": {
     "schemaVersion": {
@@ -32,7 +32,8 @@
               "type": "object",
               "properties": {
                 "id": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Core diagnostic ID. Pending recovery and unresolved transaction IDs are reported as errors; unresolved transaction messages retain owner-action details."
                 },
                 "status": {
                   "enum": [
@@ -50,7 +51,8 @@
                 "kind": {
                   "enum": [
                     "skills",
-                    "instructions"
+                    "instructions",
+                    "components"
                   ]
                 }
               },
