@@ -2,7 +2,7 @@
 
 `agents manifest dump --json [--scope project|user]` exposes the manifest
 format's JSON contract. The authoritative schema and byte contract
-are core's [Bounds and Dump](https://github.com/agents-tools/core/blob/b01aaa18352e560566d7244a864e5c543e39f322/Documentation/Reference/Manifest.md#bounds-and-dump),
+are core's [Bounds and Dump](https://github.com/agents-tools/core/blob/46c3bf9e158b9501e6267864d4ce57dc21c3058b/Documentation/Reference/Manifest.md#bounds-and-dump),
 including its semantic records and evolution rules. The CLI prints
 `ManifestDump.encodedJSON()` bytes unchanged; it does not define another
 semantic representation or wrap the result in a CLI report.
