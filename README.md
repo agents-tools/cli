@@ -118,7 +118,7 @@ agents mcp test local-tools --binding token=TOOLS_TOKEN --json
 ```
 
 Declarations live in `.agent/agents.yaml` for project scope or
-`~/.agents/agents.yaml` for user scope. The [manifest format](https://github.com/agents-tools/core/blob/25187e040ca0dd98e96c48704a4a7e95d4da198c/Documentation/Reference/Manifest.md)
+`~/.agents/agents.yaml` for user scope. The [manifest format](https://github.com/agents-tools/core/blob/b01aaa18352e560566d7244a864e5c543e39f322/Documentation/Reference/Manifest.md)
 uses a versioned YAML mapping. `agents manifest dump --json` prints the
 local declaration as a JSON object with source locations without resolving sources.
 
