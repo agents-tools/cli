@@ -1,12 +1,12 @@
 {
-  "originHash" : "5a0b42d2f13fa2f78ca58426c772136ec9241ad17f33a8d86dd677fc3dc1c2f9",
+  "originHash" : "7135b9bfde396792b8473387a9990bb0d174a6fbff2d2c8dcb68f629dee45112",
   "pins" : [
     {
       "identity" : "core",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/agents-tools/core.git",
       "state" : {
-        "revision" : "c15076ca3a0b0db2ccffa2df10e342e03f1754c5"
+        "revision" : "3979cb22b415cfe6c502a9421e2c4928a135a698"
       }
     },
     {
