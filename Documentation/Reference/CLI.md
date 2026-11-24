@@ -652,7 +652,7 @@ current directory and user scope uses HOME.
 | User | `~/.agents/agents.yaml` | `~/.agents/agents.resolved` | `~/.agents/cache/` |
 
 A project commits its declaration and lock; the cache stays local. `agents.yaml`
-uses the [manifest format](https://github.com/agents-tools/core/blob/46c3bf9e158b9501e6267864d4ce57dc21c3058b/Documentation/Reference/Manifest.md),
+uses the [manifest format](https://github.com/agents-tools/core/blob/22e88e969edb1733c7487e845b8755ad26407b3a/Documentation/Reference/Manifest.md),
 a versioned YAML mapping with required `version: 1`. Sources are named mappings;
 components are ordered sequences. Unknown structural fields produce located
 diagnostics. The declaration schema and parser are owned by core. Lifecycle
